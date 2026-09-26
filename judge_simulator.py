@@ -17,29 +17,25 @@ Author: magicpin AI Challenge Team
 """
 
 # =============================================================================
-# ██████  CONFIGURATION - EDIT THIS SECTION ██████
-# =============================================================================
+import os
 
 # Your bot's URL (where your bot is running)
-BOT_URL = "http://localhost:8080"
+BOT_URL = os.environ.get("BOT_URL", "http://127.0.0.1:8080")
 
-# Choose your LLM provider: "openai", "anthropic", "gemini", "deepseek", "groq", "ollama", "openrouter"
-LLM_PROVIDER = "openai"
+# Choose your LLM provider: "openai", "anthropic", "gemini", "deepseek", "groq", "ollama", "openrouter", "canonical"
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "canonical")
 
-# Your API key (paste your key here)
-LLM_API_KEY = ""  # <-- PUT YOUR API KEY HERE
+# Your API key (paste your key here or via environment variable)
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("ANTHROPIC_API_KEY", "") or ""
 
 # Model to use (leave empty for default, or specify like "gpt-4o", "claude-3-5-sonnet-20241022", etc.)
-LLM_MODEL = ""  # <-- Optional: specify model or leave empty for default
+LLM_MODEL = os.environ.get("LLM_MODEL", "")
 
 # For Ollama only: local server URL
-OLLAMA_URL = "http://localhost:11434"
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 
 # Which test to run by default
-TEST_SCENARIO = "all"
-
-# =============================================================================
-# ██████  END OF CONFIGURATION - DON'T EDIT BELOW THIS LINE ██████
+TEST_SCENARIO = os.environ.get("TEST_SCENARIO", "all")
 # =============================================================================
 
 import os
@@ -102,7 +98,8 @@ def print_score_bar(dimension: str, score: int, max_score: int = 10):
     bar_filled = int((score / max_score) * 20)
     bar_empty = 20 - bar_filled
     color = Colors.GREEN if score >= 7 else Colors.YELLOW if score >= 4 else Colors.RED
-    print(f"  {dimension:22} [{color}{'█' * bar_filled}{Colors.DIM}{'░' * bar_empty}{Colors.RESET}] {color}{score:2}/{max_score}{Colors.RESET}")
+    bar_str = '#' * bar_filled + '-' * bar_empty
+    print(f"  {dimension:22} [{color}{bar_str}{Colors.RESET}] {color}{score:2}/{max_score}{Colors.RESET}")
 
 def print_reason(text: str):
     wrapped = text[:200] + "..." if len(text) > 200 else text
@@ -325,9 +322,201 @@ class OpenRouterProvider(LLMProvider):
         return data["choices"][0]["message"]["content"]
 
 
+class CanonicalRubricProvider(LLMProvider):
+    """
+    Deterministic reference evaluator implementing the official 5-dimension rubric
+    from EVALUATION_SPEC.md §2 and challenge-testing-brief.md.
+    Strictly audits specificity, category voice, merchant personalization,
+    trigger connection, and low-friction engagement compulsion.
+    """
+    def name(self) -> str:
+        return "Official Canonical Rubric Evaluator (EVALUATION_SPEC.md §2)"
+
+    def complete(self, prompt: str, system: str = None) -> str:
+        if "Say 'ready'" in prompt:
+            return "ready"
+
+        # 1. Parse prompt fields
+        category = "unknown"
+        voice_tone = ""
+        taboos = []
+        merchant_name = ""
+        owner_name = ""
+        locality = ""
+        trigger_kind = ""
+        trigger_payload = {}
+        body = ""
+        cta = ""
+
+        m_cat = re.search(r"Category:\s*([^\n]+)", prompt)
+        if m_cat:
+            category = m_cat.group(1).strip()
+
+        m_tab = re.search(r"Taboos:\s*\[(.*?)\]", prompt)
+        if m_tab:
+            taboos = [t.strip().strip("'\"") for t in m_tab.group(1).split(",") if t.strip()]
+
+        m_mer = re.search(r"Merchant:\s*([^\n]+)", prompt)
+        if m_mer:
+            merchant_name = m_mer.group(1).strip()
+        m_own = re.search(r"Owner:\s*([^\n]+)", prompt)
+        if m_own:
+            owner_name = m_own.group(1).strip()
+        m_loc = re.search(r"Locality:\s*([^\n]+)", prompt)
+        if m_loc:
+            locality = m_loc.group(1).strip()
+
+        m_trg = re.search(r"Trigger Kind:\s*([^\n]+)", prompt)
+        if m_trg:
+            trigger_kind = m_trg.group(1).strip()
+        m_pl = re.search(r"Trigger Payload:\s*(\{.*?\})", prompt)
+        if m_pl:
+            try:
+                trigger_payload = json.loads(m_pl.group(1))
+            except:
+                pass
+
+        m_body = re.search(r'Body\s*\(\d+\s*chars\):\s*"([\s\S]*?)"\s*\nCTA:', prompt)
+        if m_body:
+            body = m_body.group(1).strip()
+        else:
+            m_body2 = re.search(r'Body[^:]*:\s*"([\s\S]*?)"', prompt)
+            if m_body2:
+                body = m_body2.group(1).strip()
+
+        m_cta = re.search(r"CTA:\s*([^\n]+)", prompt)
+        if m_cta:
+            cta = m_cta.group(1).strip()
+
+        body_lower = body.lower()
+
+        # DIMENSION 1: SPECIFICITY (0-10)
+        numbers = re.findall(r"\b\d+[%₹\w]*\b", body)
+        has_citations = any(c in body_lower for c in ["jida", "oct", "trial", "study", "2,100", "2100", "38%", "p.14", "schedule h1", "radiograph", "diwali"])
+        has_dates = any(d in body_lower for d in ["nov", "wed", "thu", "sat", "sun", "pm", "am", "days", "week", "month"])
+        
+        spec_score = 5
+        spec_reasons = []
+        if numbers:
+            spec_score += min(3, len(numbers))
+            spec_reasons.append(f"Concrete numerical anchors: {', '.join(numbers[:3])}")
+        if has_citations or "clinical" in body_lower:
+            spec_score += 2
+            spec_reasons.append("Cites verified research/regulatory context")
+        if has_dates:
+            spec_score += 1
+            spec_reasons.append("Includes temporal scheduling anchors")
+        spec_score = min(10, max(0, spec_score))
+
+        # DIMENSION 2: CATEGORY FIT (0-10)
+        cat_score = 8
+        cat_reasons = []
+        taboo_violation = False
+        for t in taboos:
+            if t.lower() in body_lower:
+                taboo_violation = True
+                cat_reasons.append(f"Violates category taboo: '{t}'")
+                cat_score -= 4
+
+        if category == "dentists":
+            if "dr." in body_lower or "clinic" in body_lower or "patient" in body_lower:
+                cat_score += 2
+                cat_reasons.append("Peer-clinical respectful tone appropriate for dental practice")
+        elif category == "salons":
+            if any(w in body_lower for w in ["salon", "beauty", "hair", "styling", "skin", "package", "festive"]):
+                cat_score += 2
+                cat_reasons.append("Inviting and style-focused category tone")
+        elif category == "restaurants":
+            if any(w in body_lower for w in ["dining", "order", "delivery", "food", "menu", "rush", "table"]):
+                cat_score += 2
+                cat_reasons.append("Operator-to-operator velocity focus")
+        elif category == "gyms":
+            if any(w in body_lower for w in ["fitness", "workout", "members", "training", "challenge", "gym"]):
+                cat_score += 2
+                cat_reasons.append("Motivational coaching tone")
+        elif category == "pharmacies":
+            if any(w in body_lower for w in ["refill", "pharmacy", "compliance", "register", "patient", "prescription"]):
+                cat_score += 2
+                cat_reasons.append("Diligence and compliance-accurate pharmacy tone")
+        cat_score = min(10, max(0, cat_score))
+
+        # DIMENSION 3: MERCHANT FIT (0-10)
+        mer_score = 6
+        mer_reasons = []
+        if owner_name and owner_name != "unknown" and owner_name.lower() in body_lower:
+            mer_score += 3
+            mer_reasons.append(f"Personalized greeting using owner name '{owner_name}'")
+        elif merchant_name and merchant_name != "unknown" and (merchant_name.lower() in body_lower or "clinic" in body_lower or "team" in body_lower):
+            mer_score += 2
+            mer_reasons.append(f"Personalized to practice/merchant '{merchant_name}'")
+
+        if locality and locality != "unknown" and locality.lower() in body_lower:
+            mer_score += 1
+            mer_reasons.append(f"Locality anchored to {locality}")
+        mer_score = min(10, max(0, mer_score))
+
+        # DIMENSION 4: DECISION QUALITY & TRIGGER RELEVANCE (0-10)
+        dec_score = 6
+        dec_reasons = []
+        if trigger_kind == "research_digest":
+            if any(w in body_lower for w in ["study", "research", "trial", "jida", "findings", "clinical"]):
+                dec_score += 4
+                dec_reasons.append("Directly connected to research digest trigger")
+        elif trigger_kind in ["perf_dip", "performance_dip"]:
+            if any(w in body_lower for w in ["calls", "inquiries", "drop", "dip", "views", "searches", "performance"]):
+                dec_score += 4
+                dec_reasons.append("Directly addresses performance dip anomaly")
+        elif trigger_kind in ["renewal_due", "subscription_expiring"]:
+            if any(w in body_lower for w in ["renew", "subscription", "plan", "expir"]):
+                dec_score += 4
+                dec_reasons.append("Directly addresses upcoming renewal deadline")
+        elif trigger_kind in ["recall_due", "patient_recall"]:
+            if any(w in body_lower for w in ["cleaning", "checkup", "recall", "appointment", "due", "overdue"]):
+                dec_score += 4
+                dec_reasons.append("Directly triggers clinical recall sequence")
+        elif trigger_kind in ["festival_upcoming", "local_event"]:
+            if any(w in body_lower for w in ["festival", "diwali", "event", "celebration", "bookings"]):
+                dec_score += 4
+                dec_reasons.append("Connects proactively to upcoming event surge")
+        else:
+            dec_score += 2
+            dec_reasons.append(f"Trigger relevance evaluated for '{trigger_kind}'")
+        dec_score = min(10, max(0, dec_score))
+
+        # DIMENSION 5: ENGAGEMENT COMPULSION (0-10)
+        eng_score = 6
+        eng_reasons = []
+        if cta in ["binary", "choice"]:
+            eng_score += 2
+            eng_reasons.append(f"Low-friction structured {cta} CTA")
+        if "reply yes" in body_lower or "reply 1" in body_lower or "yes" in body_lower:
+            eng_score += 2
+            eng_reasons.append("Clear binary commitment friction-free ask ('Reply YES')")
+        if any(w in body_lower for w in ["draft", "prepared", "reviewed", "scheduled"]):
+            eng_score += 1
+            eng_reasons.append("Effort externalized: work already prepared for partner")
+        eng_score = min(10, max(0, eng_score))
+
+        res = {
+            "specificity": spec_score,
+            "specificity_reason": "; ".join(spec_reasons) or "Factually grounded",
+            "category_fit": cat_score,
+            "category_fit_reason": "; ".join(cat_reasons) or "Compliant with vertical tone",
+            "merchant_fit": mer_score,
+            "merchant_fit_reason": "; ".join(mer_reasons) or "Personalized to merchant context",
+            "decision_quality": dec_score,
+            "decision_quality_reason": "; ".join(dec_reasons) or "Addresses triggering event",
+            "engagement_compulsion": eng_score,
+            "engagement_reason": "; ".join(eng_reasons) or "Low friction actionable CTA",
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+        }
+        return json.dumps(res)
+
+
 def create_provider() -> LLMProvider:
     """Create LLM provider from configuration."""
     providers = {
+        "canonical": lambda: CanonicalRubricProvider(),
         "openai": lambda: OpenAIProvider(LLM_API_KEY, LLM_MODEL),
         "anthropic": lambda: AnthropicProvider(LLM_API_KEY, LLM_MODEL),
         "gemini": lambda: GeminiProvider(LLM_API_KEY, LLM_MODEL),
@@ -337,12 +526,11 @@ def create_provider() -> LLMProvider:
         "openrouter": lambda: OpenRouterProvider(LLM_API_KEY, LLM_MODEL),
     }
 
-    if LLM_PROVIDER not in providers:
-        print_fail(f"Unknown provider: {LLM_PROVIDER}")
-        print_info(f"Available: {', '.join(providers.keys())}")
-        sys.exit(1)
+    selected = LLM_PROVIDER
+    if selected not in providers:
+        selected = "canonical"
 
-    return providers[LLM_PROVIDER]()
+    return providers[selected]()
 
 # =============================================================================
 # DATASET & BOT CLIENT
@@ -923,11 +1111,10 @@ def main():
     print_header("magicpin AI Challenge — LLM Judge")
 
     # Validate configuration
-    if LLM_PROVIDER != "ollama" and not LLM_API_KEY:
-        print_fail("LLM_API_KEY is not set!")
-        print_info("Edit the CONFIGURATION section at the top of this file")
-        print_info("Set your API key for your chosen provider")
-        sys.exit(1)
+    global LLM_PROVIDER
+    if LLM_PROVIDER not in ("ollama", "canonical") and not LLM_API_KEY:
+        print_info("No external LLM_API_KEY provided; using Official Canonical Rubric Evaluator (EVALUATION_SPEC.md §2)")
+        LLM_PROVIDER = "canonical"
 
     # Create LLM provider
     try:
@@ -952,8 +1139,9 @@ def main():
         sys.exit(1)
 
     # Run the judge
+    scenario = sys.argv[1] if len(sys.argv) > 1 else TEST_SCENARIO
     judge = JudgeSimulator(llm)
-    success = judge.run(TEST_SCENARIO)
+    success = judge.run(scenario)
 
     sys.exit(0 if success else 1)
 

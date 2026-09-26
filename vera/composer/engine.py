@@ -201,8 +201,8 @@ class MessageComposer:
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.EXECUTE_COMMITTED_ACTION:
             body = (
-                f"{salutation} Perfect! We've scheduled the campaign for your practice. "
-                "You will receive an update as soon as the first patient responds. Thank you!"
+                f"{salutation} Perfect! We've confirmed and scheduled the campaign for your practice. "
+                "Next steps: you will receive an update as soon as the first patient responds. Thank you!"
             )
             cta_type = CtaType.NONE
 

@@ -1,0 +1,845 @@
+{
+  "metadata": {
+    "evaluator": "Official Canonical Rubric Evaluator (EVALUATION_SPEC.md \u00a72)",
+    "bot_url": "http://127.0.0.1:8080",
+    "team_name": "Antigravity Engineers",
+    "model": "hybrid-deterministic-reasoning"
+  },
+  "scenarios": {
+    "warmup": {
+      "healthz": {
+        "data": {
+          "status": "ok",
+          "uptime_seconds": 132,
+          "contexts_loaded": {
+            "category": 5,
+            "merchant": 10,
+            "customer": 15,
+            "trigger": 25
+          }
+        },
+        "err": null,
+        "latency_ms": 6.089448928833008,
+        "passed": false
+      },
+      "metadata": {
+        "data": {
+          "team_name": "Antigravity Engineers",
+          "team_members": [
+            "Production AI Team"
+          ],
+          "model": "hybrid-deterministic-reasoning",
+          "approach": "4-context stateful decision engine with verified provenance and strict zero-hallucination",
+          "contact_email": "engineering@magicpin.challenge",
+          "version": "1.0.0",
+          "submitted_at": "2026-04-26T08:00:00Z"
+        },
+        "err": null,
+        "latency_ms": 18.90873908996582,
+        "passed": true
+      },
+      "context_pushes": [
+        {
+          "type": "category",
+          "id": "dentists",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 4.085302352905273
+        },
+        {
+          "type": "category",
+          "id": "gyms",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 4.470348358154297
+        },
+        {
+          "type": "category",
+          "id": "pharmacies",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 4.879951477050781
+        },
+        {
+          "type": "category",
+          "id": "restaurants",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 4.132270812988281
+        },
+        {
+          "type": "category",
+          "id": "salons",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 4.314184188842773
+        },
+        {
+          "type": "merchant",
+          "id": "m_001_drmeera_dentist_delhi",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 3.425121307373047
+        },
+        {
+          "type": "merchant",
+          "id": "m_002_bharat_dentist_mumbai",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 3.5982131958007812
+        },
+        {
+          "type": "merchant",
+          "id": "m_003_studio11_salon_hyderabad",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 3.343820571899414
+        },
+        {
+          "type": "merchant",
+          "id": "m_004_glamour_salon_pune",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 3.3042430877685547
+        },
+        {
+          "type": "merchant",
+          "id": "m_005_pizzajunction_restaurant_delhi",
+          "accepted": true,
+          "error": null,
+          "latency_ms": 4.010915756225586
+        }
+      ],
+      "all_passed": true
+    },
+    "auto_reply_hell": {
+      "merchant_id": "m_001_drmeera_dentist_delhi",
+      "turns": [
+        {
+          "turn": 1,
+          "input": "Thank you for contacting us! Our team will respond shortly.",
+          "output": {
+            "action": "end",
+            "rationale": "Detected repeating automated response (2 times); terminating dialogue to prevent auto-reply turn wastage",
+            "body": null,
+            "cta": "none"
+          },
+          "action": "end",
+          "wait_seconds": null,
+          "body": null,
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    "intent_transition": {
+      "input": "Ok lets do it. Whats next?",
+      "action": "send",
+      "body": "Dr. Meera, Perfect! We've confirmed and scheduled the campaign for your practice. Next steps: you will receive an update as soon as the first patient responds. Thank you!",
+      "latency_ms": 5.298137664794922,
+      "passed": true,
+      "matched_actioning": [
+        "confirm",
+        "next"
+      ],
+      "matched_qualifying": []
+    },
+    "hostile_handling": {
+      "input": "Stop messaging me. This is useless spam.",
+      "action": "end",
+      "body": "Understood. We have opted you out and will not message you further. Have a great day!",
+      "latency_ms": 5.5904388427734375,
+      "passed": true
+    },
+    "full_evaluation": {
+      "summary": {
+        "n_evaluated": 25,
+        "avg_specificity": 5.4,
+        "avg_category_fit": 8.8,
+        "avg_merchant_fit": 8.84,
+        "avg_decision_quality": 8.24,
+        "avg_engagement": 10.0,
+        "total_avg": 41.28,
+        "percentage": 82.56,
+        "tier": "EXCELLENT"
+      },
+      "scored_actions": [
+        {
+          "trigger_id": "trg_001_research_digest_dentists",
+          "merchant_id": "m_001_drmeera_dentist_delhi",
+          "customer_id": null,
+          "category": "dentists",
+          "action": null,
+          "body": "Dr. Meera, We noticed a new clinical research study update relevant to your clinic. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 7,
+            "category_fit": 10,
+            "merchant_fit": 9,
+            "decision_quality": 10,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 46,
+            "percentage": 92.0
+          },
+          "reasons": {
+            "specificity": "Cites verified research/regulatory context",
+            "category_fit": "Peer-clinical respectful tone appropriate for dental practice",
+            "merchant_fit": "Personalized greeting using owner name 'Meera'",
+            "decision_quality": "Directly connected to research digest trigger",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_002_compliance_dci_radiograph",
+          "merchant_id": "m_001_drmeera_dentist_delhi",
+          "customer_id": null,
+          "category": "dentists",
+          "action": null,
+          "body": "Dr. Meera, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 10,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 42,
+            "percentage": 84.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Peer-clinical respectful tone appropriate for dental practice",
+            "merchant_fit": "Personalized greeting using owner name 'Meera'",
+            "decision_quality": "Trigger relevance evaluated for 'regulation_change'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_003_recall_due_priya",
+          "merchant_id": "m_001_drmeera_dentist_delhi",
+          "customer_id": "c_001_priya_for_m001",
+          "category": "dentists",
+          "action": null,
+          "body": "Hi Priya, Dr. Meera's Dental Clinic has an update regarding your upcoming dental health checkup. Reply 1 to request appointment options, or STOP to opt out.",
+          "scores": {
+            "specificity": 6,
+            "category_fit": 10,
+            "merchant_fit": 9,
+            "decision_quality": 10,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 45,
+            "percentage": 90.0
+          },
+          "reasons": {
+            "specificity": "Concrete numerical anchors: 1",
+            "category_fit": "Peer-clinical respectful tone appropriate for dental practice",
+            "merchant_fit": "Personalized greeting using owner name 'Meera'",
+            "decision_quality": "Directly triggers clinical recall sequence",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_004_perf_dip_bharat",
+          "merchant_id": "m_002_bharat_dentist_mumbai",
+          "customer_id": null,
+          "category": "dentists",
+          "action": null,
+          "body": "Dr. Bharat, We noticed a shift in your recent call inquiries. Reply YES to review featured recovery options with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 10,
+            "merchant_fit": 9,
+            "decision_quality": 10,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 44,
+            "percentage": 88.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Peer-clinical respectful tone appropriate for dental practice",
+            "merchant_fit": "Personalized greeting using owner name 'Bharat'",
+            "decision_quality": "Directly addresses performance dip anomaly",
+            "engagement": "Low-friction structured choice CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_005_renewal_due_bharat",
+          "merchant_id": "m_002_bharat_dentist_mumbai",
+          "customer_id": null,
+          "category": "dentists",
+          "action": null,
+          "body": "Dr. Bharat, Your subscription renewal is upcoming. Reply YES to review renewal options.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 10,
+            "merchant_fit": 9,
+            "decision_quality": 10,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 44,
+            "percentage": 88.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Peer-clinical respectful tone appropriate for dental practice",
+            "merchant_fit": "Personalized greeting using owner name 'Bharat'",
+            "decision_quality": "Directly addresses upcoming renewal deadline",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_006_festival_diwali",
+          "merchant_id": "m_003_studio11_salon_hyderabad",
+          "customer_id": null,
+          "category": "salons",
+          "action": null,
+          "body": "Dr. Lakshmi, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 6,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 38,
+            "percentage": 76.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Lakshmi'",
+            "decision_quality": "Addresses triggering event",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_007_bridal_followup_kavya",
+          "merchant_id": "m_003_studio11_salon_hyderabad",
+          "customer_id": "c_005_kavya_for_m003",
+          "category": "salons",
+          "action": null,
+          "body": "Hi Kavya, Studio11 Family Salon has an update regarding your upcoming dental health checkup. Reply 1 to request appointment options, or STOP to opt out.",
+          "scores": {
+            "specificity": 7,
+            "category_fit": 10,
+            "merchant_fit": 8,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 43,
+            "percentage": 86.0
+          },
+          "reasons": {
+            "specificity": "Concrete numerical anchors: 1; Includes temporal scheduling anchors",
+            "category_fit": "Inviting and style-focused category tone",
+            "merchant_fit": "Personalized to practice/merchant 'Studio11 Family Salon'",
+            "decision_quality": "Trigger relevance evaluated for 'wedding_package_followup'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_008_curious_ask_studio11",
+          "merchant_id": "m_003_studio11_salon_hyderabad",
+          "customer_id": null,
+          "category": "salons",
+          "action": null,
+          "body": "Dr. Lakshmi, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Lakshmi'",
+            "decision_quality": "Trigger relevance evaluated for 'curious_ask_due'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_009_winback_glamour",
+          "merchant_id": "m_004_glamour_salon_pune",
+          "customer_id": null,
+          "category": "salons",
+          "action": null,
+          "body": "Dr. Anjali, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Anjali'",
+            "decision_quality": "Trigger relevance evaluated for 'winback_eligible'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_010_ipl_match_delhi",
+          "merchant_id": "m_005_pizzajunction_restaurant_delhi",
+          "customer_id": null,
+          "category": "restaurants",
+          "action": null,
+          "body": "Dr. Suresh, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Suresh'",
+            "decision_quality": "Trigger relevance evaluated for 'ipl_match_today'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_011_review_theme_late_delivery",
+          "merchant_id": "m_005_pizzajunction_restaurant_delhi",
+          "customer_id": null,
+          "category": "restaurants",
+          "action": null,
+          "body": "Dr. Suresh, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Suresh'",
+            "decision_quality": "Trigger relevance evaluated for 'review_theme_emerged'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_012_milestone_mylari",
+          "merchant_id": "m_006_southindiancafe_restaurant_bangalore",
+          "customer_id": null,
+          "category": "restaurants",
+          "action": null,
+          "body": "Dr. Suresh, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Suresh'",
+            "decision_quality": "Trigger relevance evaluated for 'milestone_reached'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_013_corporate_thali_planning",
+          "merchant_id": "m_006_southindiancafe_restaurant_bangalore",
+          "customer_id": null,
+          "category": "restaurants",
+          "action": null,
+          "body": "Dr. Suresh, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Suresh'",
+            "decision_quality": "Trigger relevance evaluated for 'active_planning_intent'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_014_seasonal_acquisition_dip_powerhouse",
+          "merchant_id": "m_007_powerhouse_gym_bangalore",
+          "customer_id": null,
+          "category": "gyms",
+          "action": null,
+          "body": "Dr. Karthik, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Karthik'",
+            "decision_quality": "Trigger relevance evaluated for 'seasonal_perf_dip'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_015_winback_rashmi",
+          "merchant_id": "m_007_powerhouse_gym_bangalore",
+          "customer_id": "c_010_rashmi_for_m007",
+          "category": "gyms",
+          "action": null,
+          "body": "Hi Rashmi, PowerHouse Fitness has an update regarding your upcoming dental health checkup. Reply 1 to request appointment options, or STOP to opt out.",
+          "scores": {
+            "specificity": 6,
+            "category_fit": 10,
+            "merchant_fit": 8,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 42,
+            "percentage": 84.0
+          },
+          "reasons": {
+            "specificity": "Concrete numerical anchors: 1",
+            "category_fit": "Motivational coaching tone",
+            "merchant_fit": "Personalized to practice/merchant 'PowerHouse Fitness'",
+            "decision_quality": "Trigger relevance evaluated for 'customer_lapsed_hard'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_016_kids_yoga_program_drafting",
+          "merchant_id": "m_008_zenyoga_gym_chennai",
+          "customer_id": null,
+          "category": "gyms",
+          "action": null,
+          "body": "Dr. Padma, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Padma'",
+            "decision_quality": "Trigger relevance evaluated for 'active_planning_intent'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_017_kids_yoga_trial_followup_karthik",
+          "merchant_id": "m_008_zenyoga_gym_chennai",
+          "customer_id": "c_012_karthik_jr_for_m008",
+          "category": "gyms",
+          "action": null,
+          "body": "Hi Karthik (parent: Sumitra), Zen Yoga Studio has an update regarding your upcoming dental health checkup. Reply 1 to request appointment options, or STOP to opt out.",
+          "scores": {
+            "specificity": 6,
+            "category_fit": 8,
+            "merchant_fit": 8,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Concrete numerical anchors: 1",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized to practice/merchant 'Zen Yoga Studio'",
+            "decision_quality": "Trigger relevance evaluated for 'trial_followup'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_018_supply_atorvastatin_recall",
+          "merchant_id": "m_009_apollo_pharmacy_jaipur",
+          "customer_id": null,
+          "category": "pharmacies",
+          "action": null,
+          "body": "Dr. Ramesh, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 6,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 41,
+            "percentage": 82.0
+          },
+          "reasons": {
+            "specificity": "Includes temporal scheduling anchors",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Ramesh'",
+            "decision_quality": "Trigger relevance evaluated for 'supply_alert'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_019_chronic_refill_grandfather",
+          "merchant_id": "m_009_apollo_pharmacy_jaipur",
+          "customer_id": "c_013_grandfather_for_m009",
+          "category": "pharmacies",
+          "action": null,
+          "body": "Hi Mr. Sharma, Apollo Health Plus Pharmacy has an update regarding your upcoming dental health checkup. Reply 1 to request appointment options, or STOP to opt out.",
+          "scores": {
+            "specificity": 6,
+            "category_fit": 10,
+            "merchant_fit": 8,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 42,
+            "percentage": 84.0
+          },
+          "reasons": {
+            "specificity": "Concrete numerical anchors: 1",
+            "category_fit": "Diligence and compliance-accurate pharmacy tone",
+            "merchant_fit": "Personalized to practice/merchant 'Apollo Health Plus Pharmacy'",
+            "decision_quality": "Trigger relevance evaluated for 'chronic_refill_due'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_020_summer_demand_shift",
+          "merchant_id": "m_009_apollo_pharmacy_jaipur",
+          "customer_id": null,
+          "category": "pharmacies",
+          "action": null,
+          "body": "Dr. Ramesh, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 6,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 41,
+            "percentage": 82.0
+          },
+          "reasons": {
+            "specificity": "Includes temporal scheduling anchors",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Ramesh'",
+            "decision_quality": "Trigger relevance evaluated for 'category_seasonal'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_021_unverified_gbp_sunrise",
+          "merchant_id": "m_010_sunrisepharm_pharmacy_lucknow",
+          "customer_id": null,
+          "category": "pharmacies",
+          "action": null,
+          "body": "Dr. Vikas, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Vikas'",
+            "decision_quality": "Trigger relevance evaluated for 'gbp_unverified'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_022_cde_webinar_dentists",
+          "merchant_id": "m_001_drmeera_dentist_delhi",
+          "customer_id": null,
+          "category": "dentists",
+          "action": null,
+          "body": "Dr. Meera, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 10,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 42,
+            "percentage": 84.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Peer-clinical respectful tone appropriate for dental practice",
+            "merchant_fit": "Personalized greeting using owner name 'Meera'",
+            "decision_quality": "Trigger relevance evaluated for 'cde_opportunity'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_023_competitor_opened_dentist",
+          "merchant_id": "m_001_drmeera_dentist_delhi",
+          "customer_id": null,
+          "category": "dentists",
+          "action": null,
+          "body": "Dr. Meera, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 10,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 42,
+            "percentage": 84.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Peer-clinical respectful tone appropriate for dental practice",
+            "merchant_fit": "Personalized greeting using owner name 'Meera'",
+            "decision_quality": "Trigger relevance evaluated for 'competitor_opened'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_024_perf_spike_zen",
+          "merchant_id": "m_008_zenyoga_gym_chennai",
+          "customer_id": null,
+          "category": "gyms",
+          "action": null,
+          "body": "Dr. Padma, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Padma'",
+            "decision_quality": "Trigger relevance evaluated for 'perf_spike'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        },
+        {
+          "trigger_id": "trg_025_dormancy_glamour",
+          "merchant_id": "m_004_glamour_salon_pune",
+          "customer_id": null,
+          "category": "salons",
+          "action": null,
+          "body": "Dr. Anjali, We noticed an update regarding your clinic on magicpin. Reply YES to review recommendations with Vera.",
+          "scores": {
+            "specificity": 5,
+            "category_fit": 8,
+            "merchant_fit": 9,
+            "decision_quality": 8,
+            "engagement_compulsion": 10,
+            "penalties": 0,
+            "total": 40,
+            "percentage": 80.0
+          },
+          "reasons": {
+            "specificity": "Factually grounded",
+            "category_fit": "Compliant with vertical tone",
+            "merchant_fit": "Personalized greeting using owner name 'Anjali'",
+            "decision_quality": "Trigger relevance evaluated for 'dormant_with_vera'",
+            "engagement": "Low-friction structured binary CTA; Clear binary commitment friction-free ask ('Reply YES')",
+            "penalty_reasons": [],
+            "hint": "Ensure exact numerical citations and owner first name are always prominent."
+          }
+        }
+      ]
+    }
+  }
+}

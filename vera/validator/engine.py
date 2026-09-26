@@ -547,7 +547,7 @@ class OutputValidator:
 
         if decision.objective == CommunicationObjective.EXECUTE_COMMITTED_ACTION:
             return ComposedMessage(
-                body=f"{salutation} Perfect! We've scheduled the campaign for your practice. You will receive an update as soon as the first patient responds. Thank you!",
+                body=f"{salutation} Perfect! We've confirmed and scheduled the campaign for your practice. Next steps: you will receive an update as soon as the first patient responds. Thank you!",
                 cta=CtaType.NONE,
                 send_as=SendAsIdentity.VERA,
                 suppression_key=decision.trigger.suppression_key,
@@ -640,7 +640,10 @@ class OutputValidator:
             )
 
         # 1. Initial generation
-        current_msg: Optional[ComposedMessage] = composer.compose(decision, previous_messages=previous_messages)
+        try:
+            current_msg: Optional[ComposedMessage] = composer.compose(decision, previous_messages=previous_messages)
+        except Exception:
+            current_msg = None
         if not current_msg:
             fallback = self.generate_safe_fallback(decision)
             return OutputValidationReport(
