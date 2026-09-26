@@ -76,10 +76,14 @@ from vera.models.context_version import (
     ContextVersionRecord,
 )
 from vera.models.validation import (
+    DimensionAudit,
+    OutputValidationReport,
+    ValidationDimension,
     ValidationErrorDetail,
     ValidationResult,
     ValidationStatus,
 )
+
 from vera.models.selection import (
     FactTier,
     SelectedFact,
@@ -147,7 +151,11 @@ __all__ = [
     "ValidationErrorDetail",
     "ValidationResult",
     "ValidationStatus",
+    "ValidationDimension",
+    "DimensionAudit",
+    "OutputValidationReport",
     "FactTier",
+
     "SelectedFact",
     "UnavailableFact",
     "SelectionBundle",

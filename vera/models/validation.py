@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import Field, ValidationError
+
 from vera.models.base import VeraBaseModel
 
 
@@ -65,3 +66,43 @@ class ValidationResult(VeraBaseModel):
             errors=details,
             warnings=[],
         )
+
+
+class ValidationDimension(str, Enum):
+    """13 mandatory validation criteria for Level 10 Output Validation."""
+
+    FACTUALITY = "factuality"
+    RELEVANCE = "relevance"
+    SPECIFICITY = "specificity"
+    CATEGORY_FIT = "category_fit"
+    MERCHANT_FIT = "merchant_fit"
+    TRIGGER_FIT = "trigger_fit"
+    CUSTOMER_FIT = "customer_fit"
+    LANGUAGE = "language"
+    LENGTH = "length"
+    CTA = "cta"
+    REPETITION = "repetition"
+    HALLUCINATION = "hallucination"
+    FORMAT = "format"
+
+
+class DimensionAudit(VeraBaseModel):
+    """Detailed score and observations for a single validation criterion."""
+
+    dimension: ValidationDimension
+    passed: bool
+    score: float = Field(default=1.0, ge=0.0, le=1.0)
+    observation: Optional[str] = None
+
+
+class OutputValidationReport(VeraBaseModel):
+    """Independent validation audit for generated WhatsApp communications."""
+
+    is_valid: bool = Field(..., description="Whether output passed all 13 independent checks")
+    dimensions: Dict[str, DimensionAudit] = Field(default_factory=dict, description="Detailed 13-dimension audit breakdown")
+    failures: List[ValidationErrorDetail] = Field(default_factory=list, description="Specific failing criteria details")
+    repaired: bool = Field(default=False, description="Whether output was successfully repaired after an initial failure")
+    retry_count: int = Field(default=0, ge=0, description="Number of regeneration / repair attempts performed")
+    used_fallback: bool = Field(default=False, description="Whether safe fallback was invoked due to exhausted retries")
+    final_body: Optional[str] = Field(default=None, description="Final approved message text")
+

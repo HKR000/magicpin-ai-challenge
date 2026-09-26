@@ -25,8 +25,10 @@ if TYPE_CHECKING:
     from vera.models.selection import SelectionBundle
     from vera.models.decision import Decision
     from vera.models.message import ComposedMessage
+    from vera.models.validation import OutputValidationReport
 
 T = TypeVar("T", bound=VeraBaseModel)
+
 
 
 
@@ -472,6 +474,49 @@ class ContextEngine:
         composer = MessageComposer()
         composed = composer.compose(decision=decision, previous_messages=previous_messages)
         return composed, None
+
+    def compose_and_validate(
+        self,
+        merchant_id: str,
+        trigger_id: str,
+        customer_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        intent: Optional[Any] = None,
+        previous_messages: Optional[List[str]] = None,
+        max_retries: int = 2,
+    ) -> Tuple[Optional[OutputValidationReport], Optional[str]]:
+        """Composes, validates across 13 dimensions, and repairs/fallbacks if needed."""
+        from vera.composer.engine import MessageComposer
+        from vera.validator.engine import OutputValidator
+
+        decision, err = self.decide(
+            merchant_id=merchant_id,
+            trigger_id=trigger_id,
+            customer_id=customer_id,
+            conversation_id=conversation_id,
+            intent=intent,
+        )
+        if err or not decision:
+            return None, err
+
+        if not decision.response_required:
+            return None, None
+
+        if previous_messages is None and conversation_id:
+            conv = self.get_conversation(conversation_id)
+            if conv and conv.turns:
+                previous_messages = [t.message for t in conv.turns if t.message]
+
+        composer = MessageComposer()
+        validator = OutputValidator()
+        report = validator.validate_and_repair(
+            decision=decision,
+            composer=composer,
+            previous_messages=previous_messages,
+            max_retries=max_retries,
+        )
+        return report, None
+
 
 
 
