@@ -28,6 +28,7 @@ from vera.models import (
     TickResponse,
 )
 from vera.intent.classifier import IntentClassifier
+from vera.orchestrator import Vera
 
 app = FastAPI(
     title="Vera Message Engine",
@@ -46,6 +47,7 @@ app.add_middleware(
 START_TIME = time.time()
 engine = ContextEngine()
 intent_classifier = IntentClassifier()
+vera = Vera(context_engine=engine, intent_classifier=intent_classifier)
 
 # Auto-load seed dataset on startup if available
 def auto_load_seeds():
@@ -218,50 +220,27 @@ class TickRequest(BaseModel):
 
 @app.post("/v1/tick")
 async def tick(req: TickRequest):
-    """Periodic proactive simulation tick."""
-    # Context & arbitration layer (Message generation plugged in Level 4/5)
+    """Periodic proactive simulation tick powered by Vera loop."""
     actions: List[Dict[str, Any]] = []
 
     for trg_id in req.available_triggers:
-        trigger = engine.get_trigger(trg_id)
-        if not trigger:
-            continue
-
-        merchant = engine.get_merchant(trigger.merchant_id)
-        if not merchant:
-            continue
-
-        category = engine.get_category(merchant.category_slug)
-        if not category:
-            continue
-
-        conv_id = f"conv_{trigger.merchant_id}_{trg_id}"
-        conv = engine.create_or_get_conversation(
-            conversation_id=conv_id,
-            merchant_id=trigger.merchant_id,
-            customer_id=trigger.customer_id,
-            trigger_id=trg_id,
-        )
-        engine.transition_conversation(
-            conversation_id=conv_id,
-            user_intent=IntentType.UNKNOWN,
-            is_proactive_send=True,
-        )
-
-        # Proactive action placeholder adhering to contract
-        actions.append({
-            "conversation_id": conv_id,
-            "merchant_id": trigger.merchant_id,
-            "customer_id": trigger.customer_id,
-            "send_as": trigger.scope.value if trigger.scope.value in ["vera", "merchant_on_behalf"] else "vera",
-            "trigger_id": trg_id,
-            "template_name": f"vera_{trigger.kind}_v1",
-            "template_params": [merchant.identity.name, merchant.identity.locality],
-            "body": f"Hello {merchant.identity.name}, regarding {trigger.kind} in {merchant.identity.locality}.",
-            "cta": "binary",
-            "suppression_key": trigger.suppression_key,
-            "rationale": f"Trigger {trigger.kind} (urgency {trigger.urgency}) activated for {merchant.identity.name}",
-        })
+        conv_id = f"conv_{trg_id}"
+        composed, decision, err = vera.handle_proactive_trigger(trg_id, conversation_id=conv_id)
+        if composed:
+            trigger = engine.get_trigger(trg_id)
+            actions.append({
+                "conversation_id": conv_id,
+                "merchant_id": trigger.merchant_id if trigger else "unknown",
+                "customer_id": trigger.customer_id if trigger else None,
+                "send_as": composed.send_as.value,
+                "trigger_id": trg_id,
+                "template_name": composed.template_name or f"vera_{trigger.kind if trigger else 'alert'}_v1",
+                "template_params": composed.template_params or [],
+                "body": composed.body,
+                "cta": composed.cta.value,
+                "suppression_key": composed.suppression_key,
+                "rationale": composed.rationale,
+            })
 
     return {"actions": actions[:20]}
 
@@ -278,66 +257,43 @@ class ReplyRequest(BaseModel):
 
 @app.post("/v1/reply")
 async def reply(req: ReplyRequest):
-    """Handle reactive replies in multi-turn conversation via state machine."""
-    conv = engine.create_or_get_conversation(
+    """Handle reactive replies in multi-turn conversation via integrated Vera loop."""
+    # Ensure conversation exists
+    engine.create_or_get_conversation(
         conversation_id=req.conversation_id,
         merchant_id=req.merchant_id or "unknown",
         customer_id=req.customer_id,
     )
 
-    detected = intent_classifier.classify(req.message)
-
-    trans = engine.transition_conversation(
+    composed, decision, trans = vera.handle_reactive_message(
         conversation_id=req.conversation_id,
-        user_intent=detected.intent_type,
         message=req.message,
-    )
-
-    if detected.intent_type == IntentType.AUTO_REPLY:
-        engine.increment_auto_reply_count(req.conversation_id)
-
-    engine.add_turn(
-        conversation_id=req.conversation_id,
         from_role=req.from_role,
-        message=req.message,
-        timestamp=req.received_at,
-        detected_intent=detected.intent_type.value,
-        action_taken=trans.action,
+        received_at=req.received_at,
     )
 
-    if trans.action == "end":
+    if not trans:
+        raise HTTPException(status_code=400, detail="State machine transition failed")
+
+    if trans.action == "wait":
+        return {
+            "action": "wait",
+            "wait_seconds": trans.wait_seconds or 1800,
+            "rationale": trans.rationale,
+        }
+    elif trans.action == "end":
         return {
             "action": "end",
             "rationale": trans.rationale,
-        }
-    elif trans.action == "wait":
-        return {
-            "action": "wait",
-            "wait_seconds": trans.wait_seconds or 900,
-            "rationale": trans.rationale,
+            "body": composed.body if composed else None,
+            "cta": composed.cta.value if composed else "none",
         }
     else:
-        if trans.to_state == State.ACTION_PENDING:
-            body = "Done! Switched to action mode. Here is what has been initiated for you immediately."
-            cta = "binary"
-        elif trans.to_state == State.QUESTION:
-            body = f"Understood your question regarding '{req.message[:50]}'. Here are the relevant details from your profile."
-            cta = "binary"
-        elif trans.to_state == State.INTERESTED:
-            body = "Great to hear your interest! Here is the relevant breakdown for your business."
-            cta = "binary"
-        elif trans.to_state == State.COMPLETED:
-            body = "Action verified and completed successfully. Let me know if you need anything else!"
-            cta = "none"
-        else:
-            body = f"Acknowledged: '{req.message[:50]}'. Next step ready."
-            cta = "binary"
-
         return {
             "action": "send",
-            "body": body,
-            "cta": cta,
-            "rationale": trans.rationale,
+            "body": composed.body if composed else "Acknowledged.",
+            "cta": composed.cta.value if composed else "binary",
+            "rationale": composed.rationale if composed else trans.rationale,
         }
 
 

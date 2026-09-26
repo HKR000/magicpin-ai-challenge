@@ -664,6 +664,7 @@ class ContextEngine:
             )
 
             result = self.state_machine.evaluate_transition(inp)
+            result.user_intent = user_intent
             if result.valid:
                 conv.set_state(result.to_state)
                 if result.context_updates_applied:

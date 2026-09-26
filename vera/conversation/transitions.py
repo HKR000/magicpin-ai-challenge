@@ -68,6 +68,9 @@ class TransitionResult(VeraBaseModel):
     error: Optional[str] = Field(
         default=None, description="Error explanation if valid is False"
     )
+    user_intent: Optional[IntentType] = Field(
+        default=None, description="Inbound intent that triggered transition"
+    )
 
 
 class TransitionRule:
