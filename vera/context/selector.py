@@ -321,7 +321,7 @@ class ContextSelector:
         if merchant.customer_aggregate:
             if trigger.scope.value == "merchant":
                 high_risk = getattr(merchant.customer_aggregate, "high_risk_adult_count", None)
-                if high_risk is not None and top_item_id == "d_2026W17_jida_fluoride":
+                if high_risk is not None and (not top_item_id or "fluoride" in str(top_item_id).lower() or trigger.kind in {"research_digest", "perf_dip"}):
                     high_value.append(
                         SelectedFact(
                             key="cohort_high_risk_adults",

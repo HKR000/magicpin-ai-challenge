@@ -24,8 +24,10 @@ from vera.models.validation import ValidationErrorDetail, ValidationResult, Vali
 if TYPE_CHECKING:
     from vera.models.selection import SelectionBundle
     from vera.models.decision import Decision
+    from vera.models.message import ComposedMessage
 
 T = TypeVar("T", bound=VeraBaseModel)
+
 
 
 
@@ -436,6 +438,41 @@ class ContextEngine:
             context_versions=versions,
         )
         return decision, None
+
+    def compose(
+        self,
+        merchant_id: str,
+        trigger_id: str,
+        customer_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        intent: Optional[Any] = None,
+        previous_messages: Optional[List[str]] = None,
+    ) -> Tuple[Optional[ComposedMessage], Optional[str]]:
+        """Produces a validated Level 9 ComposedMessage directly from context & decision layers."""
+        from vera.composer.engine import MessageComposer
+
+        decision, err = self.decide(
+            merchant_id=merchant_id,
+            trigger_id=trigger_id,
+            customer_id=customer_id,
+            conversation_id=conversation_id,
+            intent=intent,
+        )
+        if err or not decision:
+            return None, err
+
+        if not decision.response_required:
+            return None, None
+
+        if previous_messages is None and conversation_id:
+            conv = self.get_conversation(conversation_id)
+            if conv and conv.turns:
+                previous_messages = [t.message for t in conv.turns if t.message]
+
+        composer = MessageComposer()
+        composed = composer.compose(decision=decision, previous_messages=previous_messages)
+        return composed, None
+
 
 
 

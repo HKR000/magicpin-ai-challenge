@@ -41,6 +41,10 @@ class ComposedMessage(VeraBaseModel):
     rationale: str = Field(..., min_length=1, description="Reasoning and expected business outcome")
     template_name: Optional[str] = Field(default=None, description="Meta pre-approved template identifier")
     template_params: Optional[List[str]] = Field(default=None, description="Template parameter substitutions")
+    grounded_facts: List[str] = Field(default_factory=list, description="Keys of facts from selected_facts that ground claims")
+    is_validated: bool = Field(default=True, description="Whether message passed validation audit")
+    validation_notes: List[str] = Field(default_factory=list, description="Validation audit details")
+
 
 
 class ProactiveAction(VeraBaseModel):
