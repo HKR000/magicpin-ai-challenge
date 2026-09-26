@@ -18,6 +18,10 @@ class FactProvenance(VeraBaseModel):
     source: str = Field(default="context_push", description="Origin of this update (e.g., initial_load, adaptive_injection)")
     recorded_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat() + "Z", description="Audit timestamp")
 
+    def is_valid(self) -> bool:
+        """Validates that provenance has non-empty fields and a valid version."""
+        return bool(self.entity_id and self.scope and self.field_path and self.context_version >= 1)
+
 
 class ProvenanceTracker:
     """Thread-safe index for tracking fact provenance across all entities."""

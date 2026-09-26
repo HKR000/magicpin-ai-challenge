@@ -73,6 +73,12 @@ from vera.models.validation import (
     ValidationResult,
     ValidationStatus,
 )
+from vera.models.selection import (
+    FactTier,
+    SelectedFact,
+    SelectionBundle,
+    UnavailableFact,
+)
 
 __all__ = [
     "VeraBaseModel",
@@ -127,4 +133,8 @@ __all__ = [
     "ValidationErrorDetail",
     "ValidationResult",
     "ValidationStatus",
+    "FactTier",
+    "SelectedFact",
+    "UnavailableFact",
+    "SelectionBundle",
 ]

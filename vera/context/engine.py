@@ -3,7 +3,7 @@
 from __future__ import annotations
 import threading
 from datetime import datetime
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, TYPE_CHECKING
 from pydantic import Field, ValidationError
 
 from vera.context.diff import FieldChange, compute_payload_diff
@@ -21,7 +21,11 @@ from vera.models.trigger import TriggerContext
 from vera.models.intent import IntentType
 from vera.models.validation import ValidationErrorDetail, ValidationResult, ValidationStatus
 
+if TYPE_CHECKING:
+    from vera.models.selection import SelectionBundle
+
 T = TypeVar("T", bound=VeraBaseModel)
+
 
 
 class StoredEntity(VeraBaseModel, Generic[T]):
@@ -329,6 +333,58 @@ class ContextEngine:
                 category_changes=c_changes,
             )
             return bundle, None
+
+    def select_context(
+        self,
+        merchant_id: str,
+        trigger_id: str,
+        customer_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        intent: Optional[Any] = None,
+    ) -> Tuple[Optional[SelectionBundle], Optional[str]]:
+        """Assembles context and filters/prioritizes facts via ContextSelector."""
+        from vera.context.selector import ContextSelector
+
+        assembled, err = self.assemble_context(
+            merchant_id=merchant_id,
+            trigger_id=trigger_id,
+            customer_id=customer_id,
+            conversation_id=conversation_id,
+        )
+        if err or not assembled:
+            return None, err
+
+        with self._lock:
+            # Capture actual versions stored in engine
+            t_ent = self.get_stored_entity(ContextScope.TRIGGER, trigger_id)
+            m_ent = self.get_stored_entity(ContextScope.MERCHANT, merchant_id)
+            c_ent = self.get_stored_entity(ContextScope.CATEGORY, assembled.category.slug)
+            cu_ent = (
+                self.get_stored_entity(ContextScope.CUSTOMER, assembled.customer.customer_id)
+                if assembled.customer
+                else None
+            )
+
+            versions = {
+                "trigger": t_ent.version if t_ent else 1,
+                "merchant": m_ent.version if m_ent else 1,
+                "category": c_ent.version if c_ent else 1,
+            }
+            if cu_ent:
+                versions["customer"] = cu_ent.version
+
+        selector = ContextSelector()
+        bundle = selector.select(
+            category=assembled.category,
+            merchant=assembled.merchant,
+            trigger=assembled.trigger,
+            customer=assembled.customer,
+            conversation=assembled.conversation,
+            intent=intent,
+            context_versions=versions,
+        )
+        return bundle, None
+
 
     # =========================================================================
     # CONVERSATION CONTEXT STATE

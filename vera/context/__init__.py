@@ -9,8 +9,17 @@ from vera.context.engine import (
 )
 from vera.context.provenance import FactProvenance, ProvenanceTracker
 
+
+def __getattr__(name: str):
+    if name == "ContextSelector":
+        from vera.context.selector import ContextSelector
+        return ContextSelector
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+
 __all__ = [
     "ContextEngine",
+    "ContextSelector",
     "StoredEntity",
     "IngestionOutcome",
     "AssembledContext",
@@ -20,3 +29,5 @@ __all__ = [
     "FieldChange",
     "compute_payload_diff",
 ]
+
+
