@@ -23,8 +23,10 @@ from vera.models.validation import ValidationErrorDetail, ValidationResult, Vali
 
 if TYPE_CHECKING:
     from vera.models.selection import SelectionBundle
+    from vera.models.decision import Decision
 
 T = TypeVar("T", bound=VeraBaseModel)
+
 
 
 
@@ -384,6 +386,57 @@ class ContextEngine:
             context_versions=versions,
         )
         return bundle, None
+
+    def decide(
+        self,
+        merchant_id: str,
+        trigger_id: str,
+        customer_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        intent: Optional[Any] = None,
+    ) -> Tuple[Optional[Decision], Optional[str]]:
+        """Assembles context and produces a structured Level 8 Decision."""
+        from vera.decision.engine import DecisionEngine
+
+        assembled, err = self.assemble_context(
+            merchant_id=merchant_id,
+            trigger_id=trigger_id,
+            customer_id=customer_id,
+            conversation_id=conversation_id,
+        )
+        if err or not assembled:
+            return None, err
+
+        with self._lock:
+            t_ent = self.get_stored_entity(ContextScope.TRIGGER, trigger_id)
+            m_ent = self.get_stored_entity(ContextScope.MERCHANT, merchant_id)
+            c_ent = self.get_stored_entity(ContextScope.CATEGORY, assembled.category.slug)
+            cu_ent = (
+                self.get_stored_entity(ContextScope.CUSTOMER, assembled.customer.customer_id)
+                if assembled.customer
+                else None
+            )
+
+            versions = {
+                "trigger": t_ent.version if t_ent else 1,
+                "merchant": m_ent.version if m_ent else 1,
+                "category": c_ent.version if c_ent else 1,
+            }
+            if cu_ent:
+                versions["customer"] = cu_ent.version
+
+        decision_engine = DecisionEngine()
+        decision = decision_engine.decide(
+            category=assembled.category,
+            merchant=assembled.merchant,
+            trigger=assembled.trigger,
+            customer=assembled.customer,
+            conversation=assembled.conversation,
+            intent=intent,
+            context_versions=versions,
+        )
+        return decision, None
+
 
 
     # =========================================================================

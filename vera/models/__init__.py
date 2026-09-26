@@ -57,11 +57,18 @@ from vera.models.intent import (
     IntentType,
 )
 from vera.models.decision import (
+    CommunicationObjective,
+    Decision,
+    DecisionRecipient,
+    DecisionTrigger,
     DecisionType,
     ProactiveDecision,
+    ProposedAction,
+    ProposedActionType,
     ReactiveDecision,
     SuppressionResult,
 )
+
 from vera.models.context_version import (
     ContextAck,
     ContextEnvelope,
@@ -126,7 +133,14 @@ __all__ = [
     "ProactiveDecision",
     "ReactiveDecision",
     "SuppressionResult",
+    "CommunicationObjective",
+    "ProposedActionType",
+    "ProposedAction",
+    "DecisionRecipient",
+    "DecisionTrigger",
+    "Decision",
     "ContextAck",
+
     "ContextEnvelope",
     "ContextScope",
     "ContextVersionRecord",
