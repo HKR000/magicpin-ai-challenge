@@ -231,29 +231,44 @@ class Vera:
             )
             return None, decision, trans
 
-        if trans.action == "end" and conv.current_state in {State.STOPPED, State.COMPLETED} and detected_intent == IntentType.AUTO_REPLY:
+        if trans.action == "end":
+            if detected_intent == IntentType.REJECTION:
+                end_objective = CommunicationObjective.HANDLE_REJECTION
+            elif detected_intent == IntentType.HOSTILE_OPT_OUT:
+                end_objective = CommunicationObjective.CONFIRM_OPT_OUT
+            elif detected_intent == IntentType.AUTO_REPLY:
+                end_objective = CommunicationObjective.SUPPRESS_AUTO_REPLY_LOOP
+            else:
+                end_objective = CommunicationObjective.CONCLUDE_COMPLETED
+
+            needs_close_message = end_objective in {CommunicationObjective.HANDLE_REJECTION, CommunicationObjective.CONFIRM_OPT_OUT}
             decision = Decision(
                 actor="vera",
                 recipient=DecisionRecipient(
-                    recipient_id=conv.merchant_id,
+                    recipient_id=conv.merchant_id or "unknown",
                     recipient_role="merchant",
                     name="Partner",
                 ),
                 trigger=DecisionTrigger(
                     trigger_id=conv.trigger_id or "reactive_trigger",
-                    kind="auto_reply_end",
+                    kind="terminal_end",
                     scope="merchant",
                     suppression_key=f"end:{conversation_id}",
                 ),
-                objective=CommunicationObjective.SUPPRESS_AUTO_REPLY_LOOP,
+                objective=end_objective,
                 selected_facts=self._empty_bundle(),
                 proposed_action=ProposedAction(action_type=ProposedActionType.NO_OP),
                 conversation_state=conv.current_state,
-                response_required=False,
+                response_required=needs_close_message,
                 stop_required=True,
                 rationale=trans.rationale,
             )
-            return None, decision, trans
+
+            composed = None
+            if needs_close_message:
+                composed = self.composer.compose(decision)
+
+            return composed, decision, trans
 
         # 4. Synthesize Level 8 Decision with Level 7 Context Selection
         target_tid = conv.trigger_id
@@ -269,7 +284,28 @@ class Vera:
             intent=detected_intent,
         )
         if err or not decision:
-            raise RuntimeError(f"Decision failed for conversation {conversation_id}: {err}")
+            fallback_decision = Decision(
+                actor="vera",
+                recipient=DecisionRecipient(
+                    recipient_id=conv.merchant_id or "unknown",
+                    recipient_role="merchant",
+                    name="Partner",
+                ),
+                trigger=DecisionTrigger(
+                    trigger_id=target_tid or "fallback",
+                    kind="fallback_end",
+                    scope="merchant",
+                    suppression_key=f"fallback:{conversation_id}",
+                ),
+                objective=CommunicationObjective.CONFIRM_OPT_OUT,
+                selected_facts=self._empty_bundle(),
+                proposed_action=ProposedAction(action_type=ProposedActionType.NO_OP),
+                conversation_state=conv.current_state,
+                response_required=False,
+                stop_required=True,
+                rationale=f"Graceful fallback: {err or 'Context unavailable'}",
+            )
+            return None, fallback_decision, trans
 
         # If decision requires no response (silent stop / wait)
         if not decision.response_required:

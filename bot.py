@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 import os
+import re
 import time
+import uuid
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from vera.context import ContextEngine
 from vera.models import (
@@ -30,6 +33,12 @@ from vera.models import (
 from vera.intent.classifier import IntentClassifier
 from vera.orchestrator import Vera
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"time":"%(asctime)s","level":"%(levelname)s","module":"%(name)s","message":"%(message)s"}'
+)
+logger = logging.getLogger("vera.service")
+
 app = FastAPI(
     title="Vera Message Engine",
     description="magicpin Retailer AI Assistant Engine",
@@ -48,6 +57,52 @@ START_TIME = time.time()
 engine = ContextEngine()
 intent_classifier = IntentClassifier()
 vera = Vera(context_engine=engine, intent_classifier=intent_classifier)
+
+# In-memory metrics & observability counters
+METRICS_DATA = {
+    "total_requests": 0,
+    "status_2xx": 0,
+    "status_4xx": 0,
+    "status_5xx": 0,
+    "latencies_ms": [],
+}
+
+@app.middleware("http")
+async def observability_and_security_middleware(request: Request, call_next):
+    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    start_time = time.perf_counter()
+    status_code = 500
+    try:
+        response: Response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = req_id
+        return response
+    except Exception as exc:
+        logger.error(f"Unhandled server exception: req_id={req_id} path={request.url.path} error={str(exc)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "request_id": req_id},
+            headers={"X-Request-ID": req_id}
+        )
+    finally:
+        latency_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
+        METRICS_DATA["total_requests"] += 1
+        if 200 <= status_code < 300:
+            METRICS_DATA["status_2xx"] += 1
+        elif 400 <= status_code < 500:
+            METRICS_DATA["status_4xx"] += 1
+        else:
+            METRICS_DATA["status_5xx"] += 1
+
+        if len(METRICS_DATA["latencies_ms"]) < 1000:
+            METRICS_DATA["latencies_ms"].append(latency_ms)
+        else:
+            METRICS_DATA["latencies_ms"][METRICS_DATA["total_requests"] % 1000] = latency_ms
+
+        logger.info(
+            f"HTTP req_id={req_id} method={request.method} path={request.url.path} "
+            f"status={status_code} latency_ms={latency_ms}"
+        )
 
 # Auto-load seed dataset on startup if available
 def auto_load_seeds():
@@ -135,15 +190,70 @@ auto_load_seeds()
 # CHALLENGE API CONTRACT ENDPOINTS
 # =============================================================================
 
+def sanitize_payload_data(val: Any) -> Any:
+    """Recursively strip script tags, dangerous HTML, and control chars from context payloads."""
+    if isinstance(val, str):
+        cleaned = re.sub(r"<script.*?>.*?</script>", "", val, flags=re.IGNORECASE | re.DOTALL)
+        cleaned = re.sub(r"<[^>]+>", "", cleaned)
+        return cleaned.strip()
+    elif isinstance(val, dict):
+        return {k: sanitize_payload_data(v) for k, v in val.items()}
+    elif isinstance(val, list):
+        return [sanitize_payload_data(v) for v in val]
+    return val
+
+
 @app.get("/v1/healthz")
 async def healthz():
-    """Liveness probe returning uptime and loaded context counts."""
+    """Liveness & health probe returning uptime, memory usage, and loaded context counts."""
     counts = engine.get_counts()
     uptime = int(time.time() - START_TIME)
+    
+    # Process memory stats if psutil available
+    mem_info = {}
+    try:
+        import psutil
+        proc = psutil.Process()
+        mem_info = {
+            "rss_mb": round(proc.memory_info().rss / (1024 * 1024), 2),
+            "vms_mb": round(proc.memory_info().vms / (1024 * 1024), 2),
+        }
+    except Exception:
+        mem_info = {"status": "psutil_unavailable"}
+
     return {
         "status": "ok",
+        "service": "vera-agent-engine",
         "uptime_seconds": uptime,
         "contexts_loaded": counts,
+        "memory": mem_info,
+        "conversations_active": len(engine._conversations),
+    }
+
+
+@app.get("/v1/metrics")
+async def metrics():
+    """Prometheus-style telemetry and latency percentiles."""
+    lats = METRICS_DATA["latencies_ms"]
+    p50 = round(float(sorted(lats)[len(lats) // 2]), 2) if lats else 0.0
+    p95 = round(float(sorted(lats)[int(len(lats) * 0.95)]), 2) if lats else 0.0
+    max_lat = round(float(max(lats)), 2) if lats else 0.0
+    avg_lat = round(float(sum(lats) / len(lats)), 2) if lats else 0.0
+
+    return {
+        "total_requests": METRICS_DATA["total_requests"],
+        "status_breakdown": {
+            "2xx": METRICS_DATA["status_2xx"],
+            "4xx": METRICS_DATA["status_4xx"],
+            "5xx": METRICS_DATA["status_5xx"],
+        },
+        "latency_ms": {
+            "avg": avg_lat,
+            "p50": p50,
+            "p95": p95,
+            "max": max_lat,
+        },
+        "uptime_seconds": int(time.time() - START_TIME),
     }
 
 
@@ -162,21 +272,22 @@ async def metadata():
 
 
 class ContextPushRequest(BaseModel):
-    scope: str
-    context_id: str
-    version: int
-    payload: Dict[str, Any]
-    delivered_at: str
+    scope: str = Field(..., pattern="^(category|merchant|customer|trigger)$", description="Valid context domain")
+    context_id: str = Field(..., min_length=1, max_length=128, description="Target entity identifier")
+    version: int = Field(..., ge=1, description="Strict monotonically increasing integer version")
+    payload: Dict[str, Any] = Field(..., description="Entity payload data")
+    delivered_at: str = Field(..., description="ISO8601 delivery timestamp")
 
 
 @app.post("/v1/context")
 async def push_context(req: ContextPushRequest):
-    """Receive atomic context pushes with version conflict handling."""
+    """Receive atomic context pushes with version conflict handling and payload sanitization."""
+    sanitized_payload = sanitize_payload_data(req.payload)
     outcome = engine.ingest(
         scope=req.scope,
         context_id=req.context_id,
         version=req.version,
-        payload=req.payload,
+        payload=sanitized_payload,
         delivered_at=req.delivered_at,
         source="POST /v1/context",
     )
@@ -214,23 +325,41 @@ async def push_context(req: ContextPushRequest):
 
 
 class TickRequest(BaseModel):
-    now: str
-    available_triggers: List[str] = Field(default_factory=list)
+    now: str = Field(..., description="Simulation current timestamp")
+    available_triggers: List[str] = Field(default_factory=list, description="Candidate trigger IDs")
 
 
 @app.post("/v1/tick")
 async def tick(req: TickRequest):
-    """Periodic proactive simulation tick powered by Vera loop."""
+    """Periodic proactive simulation tick with priority ranking and merchant frequency-capping."""
     actions: List[Dict[str, Any]] = []
 
-    for trg_id in req.available_triggers:
+    # 1. Sort triggers by priority/urgency descending so critical perf_dip alerts precede low-urgency triggers
+    def get_trigger_urgency(tid: str) -> int:
+        trg = engine.get_trigger(tid)
+        return trg.urgency if trg else 0
+
+    sorted_triggers = sorted(req.available_triggers, key=get_trigger_urgency, reverse=True)
+
+    # 2. Merchant frequency cap: Avoid spamming the same merchant multiple times in the same tick
+    contacted_merchants = set()
+
+    for trg_id in sorted_triggers:
+        trigger = engine.get_trigger(trg_id)
+        merchant_id = trigger.merchant_id if trigger else "unknown"
+        if merchant_id != "unknown" and merchant_id in contacted_merchants:
+            # Frequency capped for this tick
+            continue
+
         conv_id = f"conv_{trg_id}"
         composed, decision, err = vera.handle_proactive_trigger(trg_id, conversation_id=conv_id)
         if composed:
-            trigger = engine.get_trigger(trg_id)
+            if merchant_id != "unknown":
+                contacted_merchants.add(merchant_id)
+
             actions.append({
                 "conversation_id": conv_id,
-                "merchant_id": trigger.merchant_id if trigger else "unknown",
+                "merchant_id": merchant_id,
                 "customer_id": trigger.customer_id if trigger else None,
                 "send_as": composed.send_as.value,
                 "trigger_id": trg_id,
@@ -242,22 +371,33 @@ async def tick(req: TickRequest):
                 "rationale": composed.rationale,
             })
 
+        if len(actions) >= 20:
+            break
+
     return {"actions": actions[:20]}
 
 
 class ReplyRequest(BaseModel):
-    conversation_id: str
-    merchant_id: Optional[str] = None
-    customer_id: Optional[str] = None
-    from_role: str
-    message: str
-    received_at: str
-    turn_number: int
+    conversation_id: str = Field(..., min_length=1, max_length=128, description="Active conversation identifier")
+    merchant_id: Optional[str] = Field(default=None, max_length=128, description="Merchant identifier")
+    customer_id: Optional[str] = Field(default=None, max_length=128, description="Optional customer identifier")
+    from_role: str = Field(default="merchant", description="'merchant' or 'customer'")
+    message: str = Field(..., max_length=4000, description="Inbound text content")
+    received_at: str = Field(..., description="Timestamp of inbound turn")
+    turn_number: int = Field(default=1, ge=1, description="Sequence turn counter")
+
+    @field_validator("message")
+    @classmethod
+    def validate_message_body(cls, v: str) -> str:
+        trimmed = v.strip() if v is not None else ""
+        if not trimmed:
+            raise ValueError("Message body cannot be empty or pure whitespace")
+        return trimmed
 
 
 @app.post("/v1/reply")
 async def reply(req: ReplyRequest):
-    """Handle reactive replies in multi-turn conversation via integrated Vera loop."""
+    """Handle reactive replies in multi-turn conversation with strict resilience and graceful fallback."""
     # Ensure conversation exists
     engine.create_or_get_conversation(
         conversation_id=req.conversation_id,
@@ -265,15 +405,30 @@ async def reply(req: ReplyRequest):
         customer_id=req.customer_id,
     )
 
-    composed, decision, trans = vera.handle_reactive_message(
-        conversation_id=req.conversation_id,
-        message=req.message,
-        from_role=req.from_role,
-        received_at=req.received_at,
-    )
+    try:
+        composed, decision, trans = vera.handle_reactive_message(
+            conversation_id=req.conversation_id,
+            message=req.message,
+            from_role=req.from_role,
+            received_at=req.received_at,
+        )
+    except Exception as exc:
+        logger.error(f"Error processing reactive reply for conv={req.conversation_id}: {exc}")
+        # Graceful fallback: do not crash with 500, end dialogue cleanly
+        return {
+            "action": "end",
+            "rationale": f"Graceful fallback termination: {str(exc)}",
+            "body": None,
+            "cta": "none",
+        }
 
     if not trans:
-        raise HTTPException(status_code=400, detail="State machine transition failed")
+        return {
+            "action": "end",
+            "rationale": "State machine transition returned empty; defaulting to end",
+            "body": None,
+            "cta": "none",
+        }
 
     if trans.action == "wait":
         return {

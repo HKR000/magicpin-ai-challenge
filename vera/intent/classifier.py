@@ -15,6 +15,7 @@ from vera.intent.patterns import (
     INTEREST_PATTERNS,
     OBJECTION_PATTERNS,
     OFF_TOPIC_PATTERNS,
+    PROMPT_INJECTION_PATTERNS,
     QUESTION_PATTERNS,
     REJECTION_PATTERNS,
     SHORT_ACCEPTANCE,
@@ -62,6 +63,17 @@ class IntentClassifier:
                     raw_text=raw_text,
                     signals_detected=["auto_reply_pattern", pattern.pattern[:30]],
                     transition_recommended="wait_or_end",
+                )
+
+        # 1b. High-Priority: Prompt Injection / Adversarial Jailbreak Detection
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            if pattern.search(clean) or pattern.search(raw_text):
+                return DetectedIntent(
+                    intent_type=IntentCategory.HOSTILE.to_model_intent(),
+                    confidence=0.99,
+                    raw_text=raw_text,
+                    signals_detected=["prompt_injection_blocked", pattern.pattern[:30]],
+                    transition_recommended="end",
                 )
 
         # 2. Hostile / Severe Opt-out

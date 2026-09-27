@@ -22,16 +22,28 @@ AUTO_REPLY_PATTERNS: List[Pattern] = [
 ]
 
 # =============================================================================
+# PROMPT INJECTION & ADVERSARIAL PATTERNS
+# =============================================================================
+
+PROMPT_INJECTION_PATTERNS: List[Pattern] = [
+    re.compile(r"\b(system\s+override|ignore\s+(all\s+)?(previous|prior)\s+instructions)\b", re.IGNORECASE),
+    re.compile(r"\b(dan\s+mode|developer\s+mode\s+active|jailbreak)\b", re.IGNORECASE),
+    re.compile(r"\b(output\s+(all\s+)?(api\s+keys?|system\s+prompt|passwords?))\b", re.IGNORECASE),
+    re.compile(r"\b(you\s+are\s+no\s+longer\s+vera|new\s+system\s+directive)\b", re.IGNORECASE),
+]
+
+# =============================================================================
 # HOSTILE & SEVERE OPT-OUT PATTERNS
 # =============================================================================
 
 HOSTILE_PATTERNS: List[Pattern] = [
     re.compile(r"\b(stop\s+messaging|stop\s+calling|don'?t\s+message|leave\s+me\s+alone)\b", re.IGNORECASE),
+    re.compile(r"\b(stp\s+(spaming|spamming|msg|messaging)|stop\s+spaming)\b", re.IGNORECASE),
     re.compile(r"\b(unsubscribe|opt[\s-]?out|cancel\s+subscription)\b", re.IGNORECASE),
-    re.compile(r"\b(this\s+is\s+spam|stop\s+spamming|useless\s+spam|spam\s+bot)\b", re.IGNORECASE),
-    re.compile(r"\b(fraud|scam|cheater|block\s+you|reporting\s+you)\b", re.IGNORECASE),
-    re.compile(r"\b(harass|harassment|bakwaas|faltu|dimag\s+kharab)\b", re.IGNORECASE),
-    re.compile(r"\b(message\s+mat\s+karo|band\s+karo|pareshan\s+mat\s+karo)\b", re.IGNORECASE),
+    re.compile(r"\b(this\s+is\s+spam|stop\s+spamming|useless\s+spam|spam\s+bot|spam\s+spam)\b", re.IGNORECASE),
+    re.compile(r"\b(fraud|scam|scammer|cheater|block\s+you|reporting\s+you|police)\b", re.IGNORECASE),
+    re.compile(r"\b(fuck\s*off|f\*\*\*|harass|harassment|bakwaas|faltu|dimag\s+kharab)\b", re.IGNORECASE),
+    re.compile(r"\b(message\s+mat\s+karo|band\s+karo|pareshan\s+mat\s+karo|kabhi\s+message\s+mat)\b", re.IGNORECASE),
     re.compile(r"(मैसेज\s+मत\s+करो|बंद\s+करो|परेशान\s+मत\s+करो|धोखा|स्पैम)", re.IGNORECASE),
 ]
 
@@ -79,10 +91,11 @@ SHORT_ACCEPTANCE: set[str] = {
 # =============================================================================
 
 REJECTION_PATTERNS: List[Pattern] = [
-    re.compile(r"\b(not\s+interested|don'?t\s+need|no\s+thanks|no\s+thank\s+you)\b", re.IGNORECASE),
+    re.compile(r"\b(not\s+interested|nt\s+intrested|don'?t\s+need|no\s+thanks|no\s+thank\s+you)\b", re.IGNORECASE),
+    re.compile(r"\b(do\s+not\s+want|don'?t\s+want|not\s+wanted|dont\s+want\s+this)\b", re.IGNORECASE),
     re.compile(r"\b(nahi\s+chahiye|man\s+nahi\s+hai|interest\s+nahi\s+hai)\b", re.IGNORECASE),
-    re.compile(r"\b(zarurat\s+nahi\s+hai|nahi\s+karna)\b", re.IGNORECASE),
-    re.compile(r"(नहीं\s+चाहिए|ज़रूरत\s+नहीं|नहीं\s+करना)", re.IGNORECASE),
+    re.compile(r"\b(zarurat\s+nahi\s+hai|nahi\s+karna|kabhi\s+nahi)\b", re.IGNORECASE),
+    re.compile(r"(नहीं\s+चाहिए|ज़रूरत\s+नहीं|नहीं\s+करना|मत\s+भेजो)", re.IGNORECASE),
 ]
 
 SHORT_REJECTION: set[str] = {
