@@ -484,6 +484,70 @@ class ContextSelector:
                     )
                     total_considered += 1
 
+        # Merchant Review Themes (Social Proof & Reputation Grounding)
+        if merchant.review_themes:
+            pos_themes = [t for t in merchant.review_themes if str(getattr(t, "sentiment", "")).lower() in {"pos", "positive"}]
+            if pos_themes:
+                top_theme = sorted(pos_themes, key=lambda t: getattr(t, "occurrences_30d", 0), reverse=True)[0]
+                supporting.append(
+                    SelectedFact(
+                        key="top_review_theme",
+                        value=top_theme.theme,
+                        tier=FactTier.SUPPORTING,
+                        provenance=FactProvenance(
+                            entity_id=merchant.merchant_id,
+                            scope="merchant",
+                            field_path="review_themes.theme",
+                            value=top_theme.theme,
+                            context_version=mer_ver,
+                        ),
+                        priority_score=0.72,
+                        relevance_reason="Top positive customer review sentiment cluster for social proof",
+                    )
+                )
+                total_considered += 1
+
+                if getattr(top_theme, "common_quote", None):
+                    supporting.append(
+                        SelectedFact(
+                            key="top_review_quote",
+                            value=top_theme.common_quote,
+                            tier=FactTier.SUPPORTING,
+                            provenance=FactProvenance(
+                                entity_id=merchant.merchant_id,
+                                scope="merchant",
+                                field_path="review_themes.common_quote",
+                                value=top_theme.common_quote,
+                                context_version=mer_ver,
+                            ),
+                            priority_score=0.68,
+                            relevance_reason="Verbatim customer review quote for authentic reputation grounding",
+                        )
+                    )
+                    total_considered += 1
+
+            # For customer-facing triggers, any negative review themes must be marked IRRELEVANT (leak prevention)
+            if trigger.scope.value == "customer":
+                neg_themes = [t for t in merchant.review_themes if str(getattr(t, "sentiment", "")).lower() in {"neg", "negative"}]
+                for neg in neg_themes:
+                    irrelevant.append(
+                        SelectedFact(
+                            key=f"internal_review_neg_{neg.theme}",
+                            value="[REDACTED_NEGATIVE_FEEDBACK]",
+                            tier=FactTier.IRRELEVANT,
+                            provenance=FactProvenance(
+                                entity_id=merchant.merchant_id,
+                                scope="merchant",
+                                field_path=f"review_themes.{neg.theme}",
+                                value=neg.theme,
+                                context_version=mer_ver,
+                            ),
+                            priority_score=0.0,
+                            relevance_reason="Internal negative review themes must not be exposed to customers",
+                        )
+                    )
+                    total_considered += 1
+
         # =====================================================================
         # 3. CATEGORY FACTS
         # =====================================================================

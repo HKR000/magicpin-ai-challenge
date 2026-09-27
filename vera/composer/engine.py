@@ -290,14 +290,27 @@ class MessageComposer:
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.DEFEND_LOCAL_COMPETITION:
             template_name = "vera_competitor_defense_v1"
-            body = (
-                f"{salutation} A new competitor clinic opened 1.2 km from {mer_name} in {locality} offering a 15% discount. "
-                "Our local retention study shows that proactive engagement prevents patient loss. "
-                "We prepared a defensive clinical patient loyalty package draft for your top 50 patients across 3 treatment categories to maintain retention this month. "
-                "Reply YES to review the draft."
-            )
-            cta_type = CtaType.BINARY
-            template_params = [salutation.rstrip(","), str(mer_name), str(locality), "1.2 km competitor clinic"]
+            top_theme = facts.get("top_review_theme")
+            if top_theme:
+                body = (
+                    f"{salutation} A new competitor clinic opened 1.2 km from {mer_name} in {locality} offering a 15% discount. "
+                    f"Patients frequently praise your '{top_theme}', giving {mer_name} a strong trust moat. "
+                    "Our local retention study shows that proactive engagement prevents patient loss. "
+                    "We prepared a defensive clinical patient loyalty package draft for your top 50 patients across 3 treatment categories to maintain retention this month. "
+                    "Reply YES to review the draft."
+                )
+                cta_type = CtaType.BINARY
+                template_params = [salutation.rstrip(","), str(mer_name), str(top_theme), "1.2 km competitor clinic"]
+                grounded_keys.append("top_review_theme")
+            else:
+                body = (
+                    f"{salutation} A new competitor clinic opened 1.2 km from {mer_name} in {locality} offering a 15% discount. "
+                    "Our local retention study shows that proactive engagement prevents patient loss. "
+                    "We prepared a defensive clinical patient loyalty package draft for your top 50 patients across 3 treatment categories to maintain retention this month. "
+                    "Reply YES to review the draft."
+                )
+                cta_type = CtaType.BINARY
+                template_params = [salutation.rstrip(","), str(mer_name), str(locality), "1.2 km competitor clinic"]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
@@ -305,13 +318,24 @@ class MessageComposer:
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.PROMOTE_SEASONAL_OFFER:
             template_name = "vera_seasonal_offer_v1"
-            body = (
-                f"{salutation} The upcoming festive season in {locality} brings an estimated 30% increase in inquiries for {mer_name} according to our annual market study. "
-                "We drafted a seasonal package across 3 peak slots to capture early bookings across 4 consecutive weeks this month. "
-                "Reply YES to review the draft package."
-            )
-            cta_type = CtaType.BINARY
-            template_params = [salutation.rstrip(","), "upcoming festive season", str(mer_name), str(locality)]
+            top_theme = facts.get("top_review_theme")
+            if top_theme:
+                body = (
+                    f"{salutation} The upcoming festive season in {locality} brings an estimated 30% increase in inquiries for {mer_name} according to our annual market study. "
+                    f"Building on customer appreciation for your '{top_theme}', we drafted a seasonal package across 3 peak slots to capture early bookings across 4 consecutive weeks this month. "
+                    "Reply YES to review the draft package."
+                )
+                cta_type = CtaType.BINARY
+                template_params = [salutation.rstrip(","), "upcoming festive season", str(mer_name), str(top_theme)]
+                grounded_keys.append("top_review_theme")
+            else:
+                body = (
+                    f"{salutation} The upcoming festive season in {locality} brings an estimated 30% increase in inquiries for {mer_name} according to our annual market study. "
+                    "We drafted a seasonal package across 3 peak slots to capture early bookings across 4 consecutive weeks this month. "
+                    "Reply YES to review the draft package."
+                )
+                cta_type = CtaType.BINARY
+                template_params = [salutation.rstrip(","), "upcoming festive season", str(mer_name), str(locality)]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------

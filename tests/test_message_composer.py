@@ -435,6 +435,34 @@ class TestMessageComposer(unittest.TestCase):
                 self.assertIsInstance(param, str, f"Parameter must be str in {obj}")
                 self.assertTrue(len(param) > 0, f"Parameter must not be empty in {obj}")
 
+    def test_composer_incorporates_and_grounds_top_review_theme(self):
+        """When top_review_theme is selected, message composer incorporates it into body and grounded_facts."""
+        cat = CategoryContext.model_validate(self._sample_category())
+        mer_dict = self._sample_merchant()
+        mer_dict["review_themes"] = [
+            {
+                "theme": "painless scaling",
+                "sentiment": "positive",
+                "occurrences_30d": 35,
+                "common_quote": "Completely painless scaling experience.",
+            }
+        ]
+        mer = MerchantContext.model_validate(mer_dict)
+        trg = TriggerContext.model_validate(self._sample_trigger(kind="competitor_opened"))
+
+        decision = self.decision_engine.decide(category=cat, merchant=mer, trigger=trg)
+        self.assertEqual(decision.objective, CommunicationObjective.DEFEND_LOCAL_COMPETITION)
+
+        msg = self.composer.compose(decision)
+        self.assertIn("painless scaling", msg.body)
+        self.assertIn("top_review_theme", msg.grounded_facts)
+        self.assertEqual(msg.template_name, "vera_competitor_defense_v1")
+        self.assertIn("painless scaling", msg.template_params)
+
+        # Validate with OutputValidator to ensure 13-dimension compliance
+        is_valid, notes = self.validator.validate(msg, decision)
+        self.assertTrue(is_valid, f"Validation errors: {notes}")
+
 
 if __name__ == "__main__":
     unittest.main()

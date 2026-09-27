@@ -547,6 +547,81 @@ class TestContextSelector(unittest.TestCase):
         mandatory_keys = [f.key for f in bundle.mandatory_facts]
         self.assertIn("execution_mode", mandatory_keys)
 
+    def test_merchant_review_themes_extracted_and_ranked(self):
+        """Review themes are extracted, ranked by occurrences, and exposed as supporting facts."""
+        cat = CategoryContext.model_validate(self._sample_category())
+        mer_dict = self._sample_merchant()
+        mer_dict["review_themes"] = [
+            {
+                "theme": "gentle painless treatment",
+                "sentiment": "positive",
+                "occurrences_30d": 42,
+                "common_quote": "Doctor Meera made root canal completely painless!",
+            },
+            {
+                "theme": "clean and hygienic clinic",
+                "sentiment": "pos",
+                "occurrences_30d": 18,
+                "common_quote": "Spotless instruments and courteous staff.",
+            },
+            {
+                "theme": "waiting room delay",
+                "sentiment": "neg",
+                "occurrences_30d": 5,
+                "common_quote": "Had to wait 20 minutes past appointment time.",
+            },
+        ]
+        mer = MerchantContext.model_validate(mer_dict)
+        trg = TriggerContext.model_validate(self._sample_trigger(kind="competitor_opened"))
+
+        bundle = self.selector.select(
+            category=cat,
+            merchant=mer,
+            trigger=trg,
+        )
+
+        supporting_facts = {f.key: f.value for f in bundle.supporting_facts}
+        self.assertIn("top_review_theme", supporting_facts)
+        self.assertEqual(supporting_facts["top_review_theme"], "gentle painless treatment")
+        self.assertIn("top_review_quote", supporting_facts)
+        self.assertEqual(
+            supporting_facts["top_review_quote"],
+            "Doctor Meera made root canal completely painless!",
+        )
+
+    def test_negative_review_themes_marked_irrelevant_for_customers(self):
+        """Negative review themes are marked IRRELEVANT for customer-facing triggers to prevent leakage."""
+        cat = CategoryContext.model_validate(self._sample_category())
+        mer_dict = self._sample_merchant()
+        mer_dict["review_themes"] = [
+            {
+                "theme": "long wait time",
+                "sentiment": "negative",
+                "occurrences_30d": 12,
+                "common_quote": "Waited 30 mins.",
+            },
+        ]
+        mer = MerchantContext.model_validate(mer_dict)
+        cust = CustomerContext.model_validate(self._sample_customer())
+        trg = TriggerContext.model_validate(
+            self._sample_trigger(
+                kind="customer_lapsed_soft",
+                scope="customer",
+            )
+        )
+
+        bundle = self.selector.select(
+            category=cat,
+            merchant=mer,
+            customer=cust,
+            trigger=trg,
+        )
+
+        irrelevant_keys = [f.key for f in bundle.irrelevant_facts]
+        self.assertIn("internal_review_neg_long wait time", irrelevant_keys)
+        supporting_keys = [f.key for f in bundle.supporting_facts]
+        self.assertNotIn("internal_review_neg_long wait time", supporting_keys)
+
 
 if __name__ == "__main__":
     unittest.main()

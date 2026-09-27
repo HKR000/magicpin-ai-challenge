@@ -137,19 +137,19 @@ The remediation sequence is organized into 6 strictly ordered, dependency-aware 
 
 ---
 
-### Stage 6: Merchant Review Themes Context Selection & Copy Polish
-* **Objective**: Incorporate positive review sentiment clusters into merchant consultation copy for enhanced personalization.
-* **Issues Resolved**: `REM-06` (`MF-03`).
+### Stage 6: Merchant Review Themes Context Selection & Copy Polish [COMPLETED]
+* **Objective**: Incorporate positive review sentiment clusters into merchant consultation copy for enhanced personalization while suppressing negative review feedback from customer-facing triggers.
+* **Issues Resolved**: `REM-06` (`MF-03` / `REQ-DAT-03`).
 * **Files Affected**:
-  - `vera/context/selector.py` (Select top positive review themes under `SUPPORTING` tier).
-  - `vera/composer/engine.py` (Optionally cite prominent review theme in `curious_ask_due` or `milestone_reached`).
-* **Tests Required**:
-  - `tests/test_context_selector.py` (Assert review themes present in `SelectionBundle`).
-  - `tests/test_message_composer.py` (Assert review themes grounded without hallucinations).
-* **Acceptance Criteria**:
-  - Selected review themes have verified provenance tracing back to `merchant.review_themes`.
-  - Evaluator score for Merchant Fit is maintained at 9–10/10 with zero hallucinations.
-* **Regression Risks**: **LOW**. Guarded by `OutputValidator` against ungrounded claims.
+  - `vera/context/selector.py` (Select top positive review themes under `SUPPORTING` tier, capture quotes, and route negative reviews to `IRRELEVANT` for customer-facing triggers).
+  - `vera/composer/engine.py` (Incorporate `top_review_theme` into `DEFEND_LOCAL_COMPETITION` and `PROMOTE_SEASONAL_OFFER`, grounding key and extracting parameter).
+* **Tests Implemented**:
+  - `tests/test_context_selector.py` (`test_merchant_review_themes_extracted_and_ranked`, `test_negative_review_themes_marked_irrelevant_for_customers`).
+  - `tests/test_message_composer.py` (`test_composer_incorporates_and_grounds_top_review_theme`).
+* **Verification Status**:
+  - 209/209 unit & integration tests pass (2.25s).
+  - All 4 judge simulator scenarios pass (`warmup`, `auto_reply`, `intent`, `hostile`).
+  - Evaluator score maintained at **47/50 (94%, EXCELLENT)** with zero regressions.
 
 ---
 
