@@ -346,6 +346,29 @@ class TestStoppingStatesAndAutoReplies(unittest.TestCase):
         self.assertEqual(res.action, "end")
         self.assertIn("identical message threshold reached", res.rationale)
 
+    def test_merchant_level_cross_conversation_auto_reply_tracking(self):
+        """Cross-conversation auto replies from the same merchant account must trigger termination on turn 2."""
+        engine = ContextEngine()
+        mid = "m_merchant_auto_test"
+
+        # Conversation 1, Turn 1: Auto reply
+        engine.create_or_get_conversation("conv_1", merchant_id=mid)
+        res1 = engine.transition_conversation("conv_1", IntentType.AUTO_REPLY, "Thank you for contacting us")
+        self.assertEqual(res1.action, "wait")
+        engine.increment_auto_reply_count("conv_1")
+
+        # Conversation 2, Turn 1 (new conversation ID, but same merchant): Auto reply
+        engine.create_or_get_conversation("conv_2", merchant_id=mid)
+        res2 = engine.transition_conversation("conv_2", IntentType.AUTO_REPLY, "Thank you for contacting us")
+        self.assertEqual(res2.action, "end")
+        self.assertEqual(res2.to_state, State.STOPPED)
+
+        # Genuine response resets counter
+        engine.create_or_get_conversation("conv_3", merchant_id=mid)
+        engine.reset_auto_reply_count("conv_3")
+        res3 = engine.transition_conversation("conv_3", IntentType.AUTO_REPLY, "Thank you for contacting us")
+        self.assertEqual(res3.action, "wait")
+
 
 class TestContextUpdatesReflected(unittest.TestCase):
     """Test suite ensuring that current context facts and updates influence transitions."""

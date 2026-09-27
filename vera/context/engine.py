@@ -99,6 +99,7 @@ class ContextEngine:
         self.conversation_store = ConversationStore()
         self.state_machine = ConversationStateMachine()
         self._conversations: Dict[str, ConversationState] = self.conversation_store._conversations
+        self._merchant_auto_replies: Dict[str, int] = {}
 
     # =========================================================================
     # INGESTION & VERSIONING
@@ -652,12 +653,16 @@ class ContextEngine:
             if message and not is_proactive_send:
                 conv.record_inbound_message(message)
 
+            effective_auto_count = conv.auto_reply_count
+            if conv.merchant_id and conv.merchant_id in self._merchant_auto_replies:
+                effective_auto_count = max(effective_auto_count, self._merchant_auto_replies[conv.merchant_id])
+
             inp = TransitionInput(
                 current_state=conv.current_state,
                 user_intent=user_intent,
                 raw_message=message,
                 turn_number=len(conv.turns) + 1,
-                auto_reply_count=conv.auto_reply_count,
+                auto_reply_count=effective_auto_count,
                 consecutive_repeated_messages=conv.consecutive_repeated_messages,
                 context_data=context_data,
                 is_proactive_send=is_proactive_send,
@@ -678,6 +683,8 @@ class ContextEngine:
             if not conv:
                 return 0
             conv.auto_reply_count += 1
+            if conv.merchant_id:
+                self._merchant_auto_replies[conv.merchant_id] = self._merchant_auto_replies.get(conv.merchant_id, 0) + 1
             return conv.auto_reply_count
 
     def reset_auto_reply_count(self, conversation_id: str):
@@ -685,6 +692,8 @@ class ContextEngine:
             conv = self._conversations.get(conversation_id)
             if conv:
                 conv.auto_reply_count = 0
+                if conv.merchant_id:
+                    self._merchant_auto_replies[conv.merchant_id] = 0
 
     # =========================================================================
     # TEARDOWN & RESET
@@ -700,3 +709,4 @@ class ContextEngine:
             self._conversations.clear()
             self.conversation_store.clear()
             self.provenance.clear()
+            self._merchant_auto_replies.clear()
