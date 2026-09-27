@@ -1,0 +1,156 @@
+# REMEDIATION SEQUENCE: magicpin AI Challenge (Vera)
+
+**Document ID**: `REMEDIATION_SEQUENCE.md`  
+**Status**: Authoritative Staged Implementation Sequence  
+**Audit Reference**: `FINAL_COMPLIANCE_AUDIT.md`, `REMEDIATION_BACKLOG.md`  
+
+---
+
+## 1. Architectural Implementation Sequence Overview
+
+The remediation sequence is organized into 6 strictly ordered, dependency-aware stages designed to achieve complete compliance without breaking existing passing tests or degrading the official evaluator score (47/50, 94%):
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 1: API Teardown Endpoint (REM-02)                     │
+│ -> Zero-risk, add-only endpoint completing HTTP contract    │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 2: Auto-Reply Termination & Fatigue Tracking (REM-01) │
+│ -> Solves [WARN] Bot never ended after 4 auto-replies       │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 3: Customer Consent Scope Enforcement (REM-03)        │
+│ -> Enforces regulatory consent check before proactive send  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 4: Proactive WhatsApp Template Parameters (REM-04)    │
+│ -> Populates template_params array across all objectives    │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 5: Concurrency, Lock-Safety & Timeout Tests (REM-05,07)│
+│ -> Validates parallel ingestion and 30-second SLA resilience│
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 6: Merchant Review Themes & Copy Polish (REM-06)      │
+│ -> Leverages review sentiment clusters in consultative copy │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Detailed Implementation Stages
+
+### Stage 1: API Teardown Endpoint Implementation
+* **Objective**: Complete the challenge HTTP API contract by exposing the state teardown endpoint.
+* **Issues Resolved**: `REM-02` (Missing `POST /v1/teardown` endpoint).
+* **Files Affected**:
+  - `bot.py` (Add `@app.post("/v1/teardown")` route handler).
+* **Tests Required**:
+  - `tests/test_integrated_loop.py` (Add test asserting `POST /v1/teardown` returns 200 and resets context counts).
+* **Acceptance Criteria**:
+  - HTTP `POST /v1/teardown` returns `{"accepted": true, "wiped": true}` with HTTP 200.
+  - Subsequent call to `GET /v1/healthz` reports all `contexts_loaded` counts as zero.
+  - Zero disruption to existing endpoints (`/v1/healthz`, `/v1/metadata`, `/v1/context`, `/v1/tick`, `/v1/reply`).
+* **Regression Risks**: **NONE**. Purely additive route leveraging pre-existing `engine.clear()` method.
+
+---
+
+### Stage 2: Auto-Reply State Machine Hard Termination & Fatigue Tracking
+* **Objective**: Eliminate auto-reply looping and resolve the simulator warning `[WARN] Bot never ended after 4 auto-replies`.
+* **Issues Resolved**: `REM-01` (`REQ-AUT-03` / `II-01`).
+* **Files Affected**:
+  - `vera/conversation/machine.py` (Enforce `auto_reply_count >= 2 -> action: "end"`).
+  - `vera/context/engine.py` (Track merchant-level auto-reply count across conversation IDs).
+  - `vera/orchestrator.py` (Synchronize merchant fatigue counter on inbound auto-reply).
+* **Tests Required**:
+  - `tests/test_conversation_state_machine.py` (Assert turn 1 returns `wait`, turn 2 returns `end`).
+  - `judge_simulator.py auto_reply` (Must print `[PASS] Turn 2: Bot ENDED — detected auto-reply pattern!`).
+* **Acceptance Criteria**:
+  - Single conversation auto-replies terminate with `action: "end"` on turn 2 or 3.
+  - Multi-conversation auto-replies targeting the same merchant (as in `judge_simulator.py:882`) detect fatigue and terminate with `action: "end"`.
+  - Zero regressions on human genuine responses (`INTEREST`, `COMMITMENT`, `INQUIRY`).
+* **Regression Risks**: **LOW**. Must ensure genuine human replies reset the auto-reply fatigue counter so subsequent human conversations are not prematurely terminated.
+
+---
+
+### Stage 3: Proactive Customer Consent Scope Enforcement
+* **Objective**: Prevent dispatch of customer-facing promotional triggers if the customer's granted consent scope does not authorize marketing.
+* **Issues Resolved**: `REM-03` (`REQ-DAT-04` / `MF-02`).
+* **Files Affected**:
+  - `vera/orchestrator.py` (`handle_proactive_trigger()` verify consent scope).
+  - `bot.py` (`POST /v1/tick` pass customer consent validation before composing action).
+* **Tests Required**:
+  - `tests/test_trigger_engine.py` (Unit test verifying that promotional triggers targeting a customer with `consent.scope = ["reminders"]` are skipped).
+  - `tests/test_integrated_loop.py` (Integration test verifying compliant dispatch when scope matches).
+* **Acceptance Criteria**:
+  - Promotional triggers are suppressed if `whatsapp_marketing` is absent from `customer.consent.scope`.
+  - Service recall triggers (`recall_due`) succeed when `reminders` is present in `customer.consent.scope`.
+* **Regression Risks**: **MEDIUM**. Mapping between trigger kinds and consent scopes must be sufficiently flexible so valid seed customer campaigns are not inadvertently blocked.
+
+---
+
+### Stage 4: Comprehensive WhatsApp Template Parameter Extraction
+* **Objective**: Populate the `template_params` variable array systematically across all proactive communication objectives.
+* **Issues Resolved**: `REM-04` (`REQ-COM-04` / `II-02`).
+* **Files Affected**:
+  - `vera/composer/engine.py` (Extract positional parameters `[salutation, anchor_1, anchor_2, cta]` in all proactive objective branches).
+* **Tests Required**:
+  - `tests/test_message_composer.py` (Assert `composed.template_params` is a non-empty list of strings for every proactive objective).
+  - `tests/test_integrated_loop.py` (Verify actions emitted by `/v1/tick` contain populated `template_params`).
+* **Acceptance Criteria**:
+  - Every proactive action in `/v1/tick` contains a valid `template_name` and a non-empty `template_params` list matching variables in `body`.
+  - No changes to rendered message copy or hallucination validator rules.
+* **Regression Risks**: **LOW**. Additive metadata on `ComposedMessage`; does not affect text scoring or validation.
+
+---
+
+### Stage 5: Concurrency, Lock-Safety & Timeout Stress Testing
+* **Objective**: Verify thread-safety, version-conflict integrity under parallel requests, and graceful timeout degradation.
+* **Issues Resolved**: `REM-05` (Missing concurrency tests) and `REM-07` (Timeout resilience tests).
+* **Files Affected**:
+  - `tests/test_concurrency.py` (New test file).
+  - `tests/test_reliability.py` (New test file).
+* **Tests Required**:
+  - Run `python -m unittest tests/test_concurrency.py`.
+  - Run `python -m unittest tests/test_reliability.py`.
+* **Acceptance Criteria**:
+  - 50 concurrent context pushes execute without race conditions or memory corruption.
+  - Stale versions are reliably rejected with HTTP 409 under parallel ingestion.
+  - Upstream timeout mock triggers graceful fallback response within deadline.
+* **Regression Risks**: **NONE**. Test suite additions only.
+
+---
+
+### Stage 6: Merchant Review Themes Context Selection & Copy Polish
+* **Objective**: Incorporate positive review sentiment clusters into merchant consultation copy for enhanced personalization.
+* **Issues Resolved**: `REM-06` (`MF-03`).
+* **Files Affected**:
+  - `vera/context/selector.py` (Select top positive review themes under `SUPPORTING` tier).
+  - `vera/composer/engine.py` (Optionally cite prominent review theme in `curious_ask_due` or `milestone_reached`).
+* **Tests Required**:
+  - `tests/test_context_selector.py` (Assert review themes present in `SelectionBundle`).
+  - `tests/test_message_composer.py` (Assert review themes grounded without hallucinations).
+* **Acceptance Criteria**:
+  - Selected review themes have verified provenance tracing back to `merchant.review_themes`.
+  - Evaluator score for Merchant Fit is maintained at 9–10/10 with zero hallucinations.
+* **Regression Risks**: **LOW**. Guarded by `OutputValidator` against ungrounded claims.
+
+---
+
+## 3. Recommended Sequencing Rationale
+
+1. **Stage 1 (Teardown Endpoint)** is completely independent, additive, and immediately closes a missing API route.
+2. **Stage 2 (Auto-Reply Termination)** directly resolves the sole warning produced by the official challenge simulator, elevating evaluation scenario results to 100% PASS.
+3. **Stage 3 (Consent Gating)** and **Stage 4 (Template Parameters)** harden the proactive pipeline and message metadata.
+4. **Stage 5 (Stress & Reliability Testing)** and **Stage 6 (Review Themes)** complete test coverage and optional feature depth.
