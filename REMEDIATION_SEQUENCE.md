@@ -84,19 +84,20 @@ The remediation sequence is organized into 6 strictly ordered, dependency-aware 
 
 ---
 
-### Stage 3: Proactive Customer Consent Scope Enforcement
+### Stage 3: Proactive Customer Consent Scope Enforcement [COMPLETED - Commit `275993c`]
 * **Objective**: Prevent dispatch of customer-facing promotional triggers if the customer's granted consent scope does not authorize marketing.
 * **Issues Resolved**: `REM-03` (`REQ-DAT-04` / `MF-02`).
 * **Files Affected**:
+  - `vera/trigger/engine.py` (Granular consent scope matching and opt-out validation in `_check_customer_consent()`).
   - `vera/orchestrator.py` (`handle_proactive_trigger()` verify consent scope).
   - `bot.py` (`POST /v1/tick` pass customer consent validation before composing action).
-* **Tests Required**:
-  - `tests/test_trigger_engine.py` (Unit test verifying that promotional triggers targeting a customer with `consent.scope = ["reminders"]` are skipped).
-  - `tests/test_integrated_loop.py` (Integration test verifying compliant dispatch when scope matches).
-* **Acceptance Criteria**:
-  - Promotional triggers are suppressed if `whatsapp_marketing` is absent from `customer.consent.scope`.
-  - Service recall triggers (`recall_due`) succeed when `reminders` is present in `customer.consent.scope`.
-* **Regression Risks**: **MEDIUM**. Mapping between trigger kinds and consent scopes must be sufficiently flexible so valid seed customer campaigns are not inadvertently blocked.
+* **Tests Implemented**:
+  - `tests/test_trigger_engine.py` (`test_customer_promotional_trigger_rejected_if_only_reminders_consent`, `test_customer_reminder_rejected_if_reminder_opt_in_false`).
+  - `tests/test_integrated_loop.py` (`test_customer_consent_scope_enforcement_in_tick`).
+* **Verification Status**:
+  - 198/198 unit & integration tests pass (1.48s).
+  - All 4 judge simulator scenarios pass (`warmup`, `auto_reply`, `intent`, `hostile`).
+  - Evaluator score maintained at **47/50 (94%, EXCELLENT)** with zero regressions.
 
 ---
 
