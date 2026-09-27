@@ -452,6 +452,18 @@ async def reply(req: ReplyRequest):
         }
 
 
+@app.post("/v1/teardown")
+async def teardown(request: Request):
+    """Wipe all loaded context and active conversations upon judge test completion."""
+    engine.clear()
+    logger.info("Teardown executed: all in-memory context and state wiped cleanly.")
+    return {
+        "accepted": True,
+        "wiped": True,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+
 # =============================================================================
 # CONVERSATION INSPECTION ENDPOINTS
 # =============================================================================

@@ -396,6 +396,39 @@ class TestIntegratedVeraLoop(unittest.TestCase):
         self.assertEqual(dec.objective, CommunicationObjective.CONFIRM_OPT_OUT)
         self.assertIn("opted you out", comp.body)
 
+    # =========================================================================
+    # 10. TEARDOWN ENDPOINT
+    # =========================================================================
+    def test_teardown_endpoint_wipes_context_and_state(self):
+        """POST /v1/teardown wipes all loaded contexts and conversation state."""
+        from starlette.testclient import TestClient
+        from bot import app, auto_load_seeds
+
+        client = TestClient(app)
+
+        # Verify healthz endpoint is reachable
+        h_before = client.get("/v1/healthz")
+        self.assertEqual(h_before.status_code, 200)
+
+        # Issue teardown
+        td_resp = client.post("/v1/teardown", json={"wipe": True})
+        self.assertEqual(td_resp.status_code, 200)
+        td_json = td_resp.json()
+        self.assertTrue(td_json.get("accepted"))
+        self.assertTrue(td_json.get("wiped"))
+
+        # Verify contexts wiped to zero
+        h_after = client.get("/v1/healthz")
+        self.assertEqual(h_after.status_code, 200)
+        counts = h_after.json().get("contexts_loaded", {})
+        self.assertEqual(counts.get("category", 0), 0)
+        self.assertEqual(counts.get("merchant", 0), 0)
+        self.assertEqual(counts.get("customer", 0), 0)
+        self.assertEqual(counts.get("trigger", 0), 0)
+
+        # Reload seeds for any subsequent tests/server usage
+        auto_load_seeds()
+
 
 if __name__ == "__main__":
     unittest.main()
