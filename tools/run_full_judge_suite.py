@@ -19,7 +19,7 @@ def main():
         "metadata": {
             "evaluator": "Official Canonical Rubric Evaluator (EVALUATION_SPEC.md §2)",
             "bot_url": BOT_URL,
-            "team_name": "Antigravity Engineers",
+            "team_name": "Harsh Kumar",
             "model": "hybrid-deterministic-reasoning"
         },
         "scenarios": {}

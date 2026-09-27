@@ -238,7 +238,7 @@ This repository contains the complete, unedited audit logs and remediation recor
 
 ## 👥 Submission Information
 
-* **Team Name**: Antigravity Engineers
+* **Team Name**: Harsh Kumar
 * **Project**: magicpin AI Challenge — Vera Autonomous Merchant Agent
 * **Version**: 1.0.0
 * **Architecture**: Hybrid Deterministic Reasoning Engine with Verified Provenance

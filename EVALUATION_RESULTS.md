@@ -34,7 +34,7 @@
 
 * **Test Identifier**: `WARMUP_METADATA_001`
   * **Endpoint**: `GET /v1/metadata`
-  * **Output**: `{"team_name": "Antigravity Engineers", "model": "hybrid-deterministic-reasoning", "version": "1.0.0"}`
+  * **Output**: `{"team_name": "Harsh Kumar", "model": "hybrid-deterministic-reasoning", "version": "1.0.0"}`
   * **Score**: 10/10 (Pass)
 
 ---

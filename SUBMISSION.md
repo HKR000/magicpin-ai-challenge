@@ -1,7 +1,7 @@
 # SUBMISSION BRIEF: magicpin AI Challenge — Vera
 
 **Submission Date**: September 27, 2026  
-**Candidate Team**: Antigravity Engineers  
+**Candidate Team**: Harsh Kumar  
 **System Name**: Vera AI Agent Engine  
 **Repository**: [https://github.com/HKR000/magicpin-ai-challenge](https://github.com/HKR000/magicpin-ai-challenge)  
 **Branch**: `main`  
@@ -11,7 +11,7 @@
 
 ## 1. Project Information for Portal Submission
 
-* **Team Name**: Antigravity Engineers
+* **Team Name**: Harsh Kumar
 * **Primary Contact**: engineering@magicpin.challenge
 * **Model Approach**: `hybrid-deterministic-reasoning`
 * **Architecture Summary**: 

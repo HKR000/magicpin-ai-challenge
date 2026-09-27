@@ -2,7 +2,7 @@
   "metadata": {
     "evaluator": "Official Canonical Rubric Evaluator (EVALUATION_SPEC.md \u00a72)",
     "bot_url": "http://127.0.0.1:8080",
-    "team_name": "Antigravity Engineers",
+    "team_name": "Harsh Kumar",
     "model": "hybrid-deterministic-reasoning"
   },
   "scenarios": {
@@ -24,7 +24,7 @@
       },
       "metadata": {
         "data": {
-          "team_name": "Antigravity Engineers",
+          "team_name": "Harsh Kumar",
           "team_members": [
             "Production AI Team"
           ],

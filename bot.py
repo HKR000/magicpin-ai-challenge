@@ -262,8 +262,8 @@ async def metrics():
 async def metadata():
     """Bot identity and model architecture metadata."""
     return {
-        "team_name": "Antigravity Engineers",
-        "team_members": ["Production AI Team"],
+        "team_name": "Harsh Kumar",
+        "team_members": ["Harsh Kumar"],
         "model": "hybrid-deterministic-reasoning",
         "approach": "4-context stateful decision engine with verified provenance and strict zero-hallucination",
         "contact_email": "engineering@magicpin.challenge",
