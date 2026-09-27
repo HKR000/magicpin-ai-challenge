@@ -1,6 +1,7 @@
 """Vera Bot - magicpin Merchant AI Assistant HTTP Service & Inspector Dashboard."""
 
 from __future__ import annotations
+import asyncio
 import os
 import re
 import time
@@ -417,12 +418,24 @@ async def reply(req: ReplyRequest):
     )
 
     try:
-        composed, decision, trans = vera.handle_reactive_message(
-            conversation_id=req.conversation_id,
-            message=req.message,
-            from_role=req.from_role,
-            received_at=req.received_at,
+        composed, decision, trans = await asyncio.wait_for(
+            asyncio.to_thread(
+                vera.handle_reactive_message,
+                conversation_id=req.conversation_id,
+                message=req.message,
+                from_role=req.from_role,
+                received_at=req.received_at,
+            ),
+            timeout=25.0,
         )
+    except asyncio.TimeoutError:
+        logger.warning(f"Reactive processing timed out for conv={req.conversation_id}; returning safe fallback")
+        return {
+            "action": "end",
+            "rationale": "Graceful fallback: processing exceeded response deadline",
+            "body": None,
+            "cta": "none",
+        }
     except Exception as exc:
         logger.error(f"Error processing reactive reply for conv={req.conversation_id}: {exc}")
         # Graceful fallback: do not crash with 500, end dialogue cleanly
