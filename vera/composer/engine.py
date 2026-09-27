@@ -74,11 +74,14 @@ class MessageComposer:
         body = ""
         cta_type = CtaType.BINARY
         rationale = decision.rationale
+        template_name: Optional[str] = None
+        template_params: Optional[List[str]] = None
 
         # ---------------------------------------------------------------------
         # OBJECTIVE A: PITCH_RESEARCH_CAMPAIGN (Clinical / Dentists)
         # ---------------------------------------------------------------------
         if obj == CommunicationObjective.PITCH_RESEARCH_CAMPAIGN:
+            template_name = "vera_research_pitch_v1"
             title = facts.get("digest_item_title")
             source = facts.get("digest_item_source", "clinical journal JIDA Oct")
             trial_n = facts.get("digest_item_trial_n", "2,100")
@@ -99,6 +102,7 @@ class MessageComposer:
                     "Would you like to proceed? Reply YES to launch."
                 )
                 cta_type = CtaType.BINARY
+                template_params = [salutation.rstrip(","), locality, "preventive recall program", "Reply YES to launch"]
             else:
                 body = (
                     f"{salutation} Worth a quick look: {source} published a clinical study (n={trial_n}) showing {summary}. "
@@ -106,6 +110,7 @@ class MessageComposer:
                     "Shall we schedule a draft recall campaign across 3 priority dates this week? Reply YES to review draft."
                 )
                 cta_type = CtaType.BINARY
+                template_params = [salutation.rstrip(","), str(source), str(cohort), f"{mer_name}, {locality}"]
                 if title:
                     grounded_keys.append("digest_item_title")
                 grounded_keys.extend(["digest_item_source", "digest_item_trial_n", "cohort_high_risk_adults", "merchant_name", "merchant_locality"])
@@ -114,6 +119,7 @@ class MessageComposer:
         # OBJECTIVE B: RECOVER_PERFORMANCE_DIP
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.RECOVER_PERFORMANCE_DIP:
+            template_name = "vera_performance_dip_v1"
             delta = facts.get("perf_calls_delta_7d") or facts.get("delta_pct") or 0.22
             delta_str = f"{abs(int(delta * 100))}%" if isinstance(delta, (int, float)) and delta < 1 else f"{abs(int(delta))}%"
             active_offer = next((v for k, v in facts.items() if k.startswith("active_offer_")), "Featured Special")
@@ -135,6 +141,7 @@ class MessageComposer:
                 "Shall we pin this offer to restore volume this week? Reply YES to approve."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), delta_str, str(active_offer), f"{mer_name}, {locality}"]
             if "perf_calls_delta_7d" in facts:
                 grounded_keys.append("perf_calls_delta_7d")
             grounded_keys.extend(["merchant_name", "merchant_locality", "active_offer"])
@@ -144,6 +151,7 @@ class MessageComposer:
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.RE_ENGAGE_LAPSED_CUSTOMER:
             if decision.recipient.recipient_role == "customer":
+                template_name = "vera_customer_recall_v1"
                 cust_name = decision.recipient.name or "there"
                 pref_slots = facts.get("customer_preferred_slots", "Saturday 11 AM")
                 service = decision.proposed_action.payload.get("service_due", "periodic health checkup")
@@ -163,20 +171,24 @@ class MessageComposer:
                     "Reply 1 to book Saturday 11 AM, or 2 for Sunday."
                 )
                 cta_type = CtaType.CHOICE
+                template_params = [f"Hi {cust_name}", str(service), f"{mer_name}, {locality}", str(pref_slots)]
                 grounded_keys.extend(["customer_name", "merchant_name", "merchant_locality"])
             else:
+                template_name = "vera_merchant_lapsed_campaign_v1"
                 body = (
                     f"{salutation} We reviewed {mer_name} in {locality} and identified 14 lapsed customer profiles across 3 service categories overdue for appointment recall in our recent patient study. "
                     "We prepared a draft re-engagement campaign offering 2 convenient trial slots this week. "
                     "Reply YES to review the draft message."
                 )
                 cta_type = CtaType.BINARY
+                template_params = [salutation.rstrip(","), str(mer_name), str(locality), "14 lapsed profiles"]
                 grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE D: RENEW_PLATFORM_SUBSCRIPTION
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.RENEW_PLATFORM_SUBSCRIPTION:
+            template_name = "vera_subscription_renewal_v1"
             days_rem = facts.get("subscription_days_remaining", 12)
             plan = facts.get("subscription_plan", "Pro")
 
@@ -186,12 +198,14 @@ class MessageComposer:
                 "We prepared a draft renewal invoice. Reply YES to generate your instant renewal link."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), str(plan), f"{days_rem} days", f"{mer_name}, {locality}"]
             grounded_keys.extend(["subscription_plan", "subscription_days_remaining", "merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE E: VERIFY_GOOGLE_BUSINESS_PROFILE
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.VERIFY_GOOGLE_BUSINESS_PROFILE:
+            template_name = "vera_gmb_verification_v1"
             if cat_slug == "pharmacies":
                 cat_kw = "pharmacy patient prescription"
             elif cat_slug == "salons":
@@ -209,12 +223,14 @@ class MessageComposer:
                 "Reply YES to receive the draft instructions."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), str(mer_name), str(locality), "25% discovery drop"]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE F: PROMOTE_FESTIVE_PACKAGE (Salons)
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.PROMOTE_FESTIVE_PACKAGE:
+            template_name = "vera_festive_package_v1"
             body = (
                 f"{salutation} With Diwali festive bookings opening over the next 18 days in {locality}, our seasonal trend study showed elevated beauty appointments. "
                 f"We prepared a special hair and beauty styling trial package draft for {mer_name}. "
@@ -222,12 +238,14 @@ class MessageComposer:
                 "Reply YES to review the draft package."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), "Diwali festive bookings", str(mer_name), str(locality)]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE G: OPTIMIZE_RESTAURANT_SURGE (Restaurants)
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.OPTIMIZE_RESTAURANT_SURGE:
+            template_name = "vera_restaurant_surge_v1"
             body = (
                 f"{salutation} With today's IPL match at 7 PM driving an estimated 35% delivery rush in {locality}, our match-night order study recommends a targeted promotion. "
                 f"We drafted a featured match-day food menu for {mer_name}. "
@@ -235,12 +253,14 @@ class MessageComposer:
                 "Reply YES to activate the draft menu."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), "IPL match at 7 PM", str(mer_name), str(locality)]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE H: DRIVE_FITNESS_MEMBERSHIP (Gyms)
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.DRIVE_FITNESS_MEMBERSHIP:
+            template_name = "vera_fitness_challenge_v1"
             body = (
                 f"{salutation} To counter seasonal member lull in {locality}, our fitness attendance study suggests an interactive challenge. "
                 f"We prepared a 30-day workout training challenge trial draft for {mer_name}. "
@@ -248,24 +268,28 @@ class MessageComposer:
                 "Reply YES to review the draft challenge."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), "30-day workout training challenge", str(mer_name), str(locality)]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE I: AUDIT_PHARMACY_COMPLIANCE (Pharmacies)
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.AUDIT_PHARMACY_COMPLIANCE:
+            template_name = "vera_pharmacy_compliance_v1"
             body = (
                 f"{salutation} We reviewed your pharmacy compliance register for {mer_name} in {locality} under our clinical audit study and identified 12 patient prescription refill schedules due under Schedule H1 this week. "
                 "We prepared a verified clinical patient refill reminder trial draft for 3 upcoming dates. "
                 "Reply YES to review the draft message."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), str(mer_name), str(locality), "Schedule H1 refill register"]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE J: DEFEND_LOCAL_COMPETITION
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.DEFEND_LOCAL_COMPETITION:
+            template_name = "vera_competitor_defense_v1"
             body = (
                 f"{salutation} A new competitor clinic opened 1.2 km from {mer_name} in {locality} offering a 15% discount. "
                 "Our local retention study shows that proactive engagement prevents patient loss. "
@@ -273,18 +297,21 @@ class MessageComposer:
                 "Reply YES to review the draft."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), str(mer_name), str(locality), "1.2 km competitor clinic"]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE K: PROMOTE_SEASONAL_OFFER
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.PROMOTE_SEASONAL_OFFER:
+            template_name = "vera_seasonal_offer_v1"
             body = (
                 f"{salutation} The upcoming festive season in {locality} brings an estimated 30% increase in inquiries for {mer_name} according to our annual market study. "
                 "We drafted a seasonal package across 3 peak slots to capture early bookings across 4 consecutive weeks this month. "
                 "Reply YES to review the draft package."
             )
             cta_type = CtaType.BINARY
+            template_params = [salutation.rstrip(","), "upcoming festive season", str(mer_name), str(locality)]
             grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
@@ -357,6 +384,11 @@ class MessageComposer:
             body = f"{salutation} We have an update regarding {mer_name} in {locality}. Reply YES to review draft."
             cta_type = CtaType.BINARY
 
+        # Fallback proactive template assignment if trigger is present but template_name unset
+        if template_name is None and decision.trigger:
+            template_name = f"vera_{decision.trigger.kind}_v1"
+            template_params = [salutation.rstrip(","), str(mer_name), str(locality)]
+
         # Construct candidate ComposedMessage
         msg = ComposedMessage(
             body=body,
@@ -364,6 +396,8 @@ class MessageComposer:
             send_as=send_as,
             suppression_key=decision.trigger.suppression_key,
             rationale=rationale,
+            template_name=template_name,
+            template_params=template_params,
             grounded_facts=grounded_keys,
             is_validated=False,
             validation_notes=[],

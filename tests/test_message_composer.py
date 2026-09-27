@@ -399,6 +399,42 @@ class TestMessageComposer(unittest.TestCase):
         self.assertIn("JIDA Oct 2026", composed.body)
         self.assertEqual(composed.cta, CtaType.BINARY)
 
+    def test_proactive_template_params_extraction_across_all_objectives(self):
+        """Verify template_name and template_params are populated across all proactive objectives."""
+        cat = CategoryContext.model_validate(self._sample_category())
+        mer = MerchantContext.model_validate(self._sample_merchant())
+
+        proactive_objectives = [
+            (CommunicationObjective.PITCH_RESEARCH_CAMPAIGN, "research_digest"),
+            (CommunicationObjective.RECOVER_PERFORMANCE_DIP, "perf_dip"),
+            (CommunicationObjective.RE_ENGAGE_LAPSED_CUSTOMER, "customer_lapsed_soft"),
+            (CommunicationObjective.RENEW_PLATFORM_SUBSCRIPTION, "renewal_due"),
+            (CommunicationObjective.VERIFY_GOOGLE_BUSINESS_PROFILE, "gmb_unverified"),
+            (CommunicationObjective.PROMOTE_FESTIVE_PACKAGE, "festive_event"),
+            (CommunicationObjective.OPTIMIZE_RESTAURANT_SURGE, "match_night_surge"),
+            (CommunicationObjective.DRIVE_FITNESS_MEMBERSHIP, "fitness_lull"),
+            (CommunicationObjective.AUDIT_PHARMACY_COMPLIANCE, "schedule_h1_refill"),
+            (CommunicationObjective.DEFEND_LOCAL_COMPETITION, "competitor_opened"),
+            (CommunicationObjective.PROMOTE_SEASONAL_OFFER, "seasonal_beat"),
+        ]
+
+        for obj, kind in proactive_objectives:
+            trg = TriggerContext.model_validate(self._sample_trigger(kind=kind))
+            decision = self.decision_engine.decide(category=cat, merchant=mer, trigger=trg)
+            # Override objective to test this branch deterministically
+            decision.objective = obj
+            msg = self.composer.compose(decision)
+
+            self.assertIsNotNone(msg, f"Message should not be None for {obj}")
+            self.assertIsNotNone(msg.template_name, f"template_name should be set for {obj}")
+            self.assertTrue(len(msg.template_name) > 0, f"template_name should be non-empty for {obj}")
+            self.assertIsNotNone(msg.template_params, f"template_params should not be None for {obj}")
+            self.assertIsInstance(msg.template_params, list, f"template_params must be a list for {obj}")
+            self.assertGreaterEqual(len(msg.template_params), 2, f"template_params must have >= 2 items for {obj}")
+            for param in msg.template_params:
+                self.assertIsInstance(param, str, f"Parameter must be str in {obj}")
+                self.assertTrue(len(param) > 0, f"Parameter must not be empty in {obj}")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -105,4 +105,6 @@ class OutputValidationReport(VeraBaseModel):
     retry_count: int = Field(default=0, ge=0, description="Number of regeneration / repair attempts performed")
     used_fallback: bool = Field(default=False, description="Whether safe fallback was invoked due to exhausted retries")
     final_body: Optional[str] = Field(default=None, description="Final approved message text")
+    template_name: Optional[str] = Field(default=None, description="Approved Meta WhatsApp template name")
+    template_params: Optional[List[str]] = Field(default=None, description="Positional template substitutions")
 

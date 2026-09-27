@@ -154,6 +154,8 @@ class Vera:
             suppression_key=decision.trigger.suppression_key,
             rationale=decision.rationale,
             grounded_facts=[f.key for f in decision.selected_facts.high_value_facts],
+            template_name=report.template_name or f"vera_{decision.trigger.kind}_v1",
+            template_params=report.template_params if report.template_params is not None else [decision.recipient.name or "Partner", str(decision.trigger.kind)],
             is_validated=True,
             validation_notes=[d.observation or "" for d in report.dimensions.values() if d.observation],
         )

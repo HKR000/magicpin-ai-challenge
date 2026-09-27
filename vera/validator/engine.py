@@ -434,6 +434,8 @@ class OutputValidator:
             retry_count=0,
             used_fallback=False,
             final_body=body if overall_valid else None,
+            template_name=message.template_name,
+            template_params=message.template_params,
         )
 
     def repair_message(
@@ -516,6 +518,8 @@ class OutputValidator:
                 send_as=SendAsIdentity.MERCHANT_ON_BEHALF,
                 suppression_key=decision.trigger.suppression_key,
                 rationale="Deterministic safe fallback: verified appointment checkup reminder",
+                template_name="vera_customer_recall_fallback_v1",
+                template_params=[f"Hi {cust_name}", mer_name],
                 grounded_facts=["customer_name", "merchant_name"],
                 is_validated=True,
                 validation_notes=["PASS: Safe deterministic fallback verified"],
@@ -611,6 +615,8 @@ class OutputValidator:
             send_as=SendAsIdentity.VERA,
             suppression_key=decision.trigger.suppression_key,
             rationale="Deterministic safe fallback: verified neutral merchant update",
+            template_name=f"vera_{decision.trigger.kind if decision.trigger else 'alert'}_fallback_v1",
+            template_params=[salutation.rstrip(","), mer_name],
             grounded_facts=["merchant_name"] + (["owner_first_name"] if owner_name else []),
             is_validated=True,
             validation_notes=["PASS: Safe neutral merchant fallback verified"],
@@ -654,12 +660,16 @@ class OutputValidator:
                 retry_count=0,
                 used_fallback=True,
                 final_body=fallback.body,
+                template_name=fallback.template_name,
+                template_params=fallback.template_params,
             )
 
         # 2. Initial validation
         report = self.validate(current_msg, decision, previous_messages=previous_messages)
         if report.is_valid:
             report.final_body = current_msg.body
+            report.template_name = current_msg.template_name
+            report.template_params = current_msg.template_params
             return report
 
         # 3. Retry / Repair Loop
@@ -673,6 +683,8 @@ class OutputValidator:
                 report.repaired = True
                 report.retry_count = retries
                 report.final_body = current_msg.body
+                report.template_name = current_msg.template_name
+                report.template_params = current_msg.template_params
                 return report
 
         # 4. If still invalid after retries, invoke safe fallback
@@ -687,4 +699,6 @@ class OutputValidator:
             retry_count=retries,
             used_fallback=True,
             final_body=safe_fallback.body,
+            template_name=safe_fallback.template_name,
+            template_params=safe_fallback.template_params,
         )

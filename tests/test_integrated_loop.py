@@ -530,6 +530,17 @@ class TestIntegratedVeraLoop(unittest.TestCase):
         # trg_auth_recall should be dispatched as customer opted in to reminders
         self.assertIn("trg_auth_recall", dispatched_trigger_ids)
 
+        # Stage 4: Assert every dispatched action contains valid template_name and non-empty template_params
+        for act in actions:
+            self.assertIn("template_name", act)
+            self.assertTrue(len(act["template_name"]) > 0, "template_name must be non-empty")
+            self.assertIn("template_params", act)
+            self.assertIsInstance(act["template_params"], list)
+            self.assertGreaterEqual(len(act["template_params"]), 1, "template_params must be non-empty list")
+            for param in act["template_params"]:
+                self.assertIsInstance(param, str)
+                self.assertTrue(len(param) > 0)
+
 
 if __name__ == "__main__":
     unittest.main()

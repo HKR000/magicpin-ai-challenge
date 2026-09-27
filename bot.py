@@ -375,7 +375,7 @@ async def tick(req: TickRequest):
                 "send_as": composed.send_as.value,
                 "trigger_id": trg_id,
                 "template_name": composed.template_name or f"vera_{trigger.kind if trigger else 'alert'}_v1",
-                "template_params": composed.template_params or [],
+                "template_params": composed.template_params if composed.template_params else [f"Team {merchant_id}", trigger.kind if trigger else "alert"],
                 "body": composed.body,
                 "cta": composed.cta.value,
                 "suppression_key": composed.suppression_key,
