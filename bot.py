@@ -33,6 +33,10 @@ from vera.models import (
 )
 from vera.intent.classifier import IntentClassifier
 from vera.orchestrator import Vera
+from vera.models.category import CategoryContext
+from vera.models.merchant import MerchantContext
+from vera.models.customer import CustomerContext
+from vera.models.trigger import TriggerContext
 
 logging.basicConfig(
     level=logging.INFO,
@@ -473,6 +477,70 @@ async def reply(req: ReplyRequest):
             "body": composed.body if composed else "Acknowledged.",
             "cta": composed.cta.value if composed else "binary",
             "rationale": composed.rationale if composed else trans.rationale,
+        }
+
+
+# =============================================================================
+# CHALLENGE BRIEF §7.1 & §7.4 ENTRYPOINTS (DIRECT PYTHON API)
+# =============================================================================
+
+def compose(category: dict, merchant: dict, trigger: dict, customer: Optional[dict] = None) -> dict:
+    """
+    Challenge Brief §7.1: Single-call composition entrypoint.
+    Inputs are the dicts loaded from the dataset JSON.
+    Return dict with keys: body, cta, send_as, suppression_key, rationale.
+    Deterministic, grounded on verified context, completes in < 30s.
+    """
+    cat = CategoryContext.model_validate(category)
+    mer = MerchantContext.model_validate(merchant)
+    trg = TriggerContext.model_validate(trigger)
+    cust = CustomerContext.model_validate(customer) if customer else None
+
+    decision = vera.decision_engine.decide(category=cat, merchant=mer, trigger=trg, customer=cust)
+    composed = vera.composer.compose(decision)
+
+    return {
+        "body": composed.body,
+        "cta": composed.cta.value,
+        "send_as": composed.send_as.value,
+        "suppression_key": composed.suppression_key,
+        "rationale": composed.rationale,
+    }
+
+
+def respond(state: Any, merchant_message: str) -> dict:
+    """
+    Challenge Brief §7.4: Multi-turn response entrypoint.
+    Given conversation state so far + merchant latest message, produce next action.
+    """
+    conv_id = getattr(state, "conversation_id", "conv_default")
+    mer_id = getattr(state, "merchant_id", "m_001")
+    cust_id = getattr(state, "customer_id", None)
+
+    turn_rec, action_type, wait_sec, rationale, err = vera.handle_reactive_turn(
+        conversation_id=conv_id,
+        merchant_id=mer_id,
+        customer_id=cust_id,
+        message=merchant_message,
+        from_role="merchant",
+    )
+    if action_type == "send" and turn_rec:
+        return {
+            "action": "send",
+            "body": turn_rec.message,
+            "cta": "binary",
+            "rationale": rationale or "Honoring merchant intent",
+        }
+    elif action_type == "wait":
+        return {
+            "action": "wait",
+            "wait_seconds": wait_sec or 900,
+            "rationale": rationale or "Backing off",
+        }
+    else:
+        return {
+            "action": "end",
+            "rationale": rationale or "Gracefully terminating dialogue",
         }
 
 
