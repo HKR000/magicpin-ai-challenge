@@ -429,6 +429,107 @@ class TestIntegratedVeraLoop(unittest.TestCase):
         # Reload seeds for any subsequent tests/server usage
         auto_load_seeds()
 
+    # =========================================================================
+    # 11. CUSTOMER CONSENT SCOPE ENFORCEMENT IN TICK
+    # =========================================================================
+    def test_customer_consent_scope_enforcement_in_tick(self):
+        """POST /v1/tick enforces customer consent scopes, suppressing unauthorized marketing outreach."""
+        from starlette.testclient import TestClient
+        from bot import app, engine, vera
+
+        client = TestClient(app)
+
+        # Ingest category and merchant into server engine
+        engine.ingest("category", "dentists", 1, self.cat_data)
+        engine.ingest("merchant", "m_001_drmeera", 1, self.mer_data)
+
+        # 1. Ingest customer with only reminders consent (no promotional/marketing)
+        cust_reminders = {
+            "customer_id": "c_rem_loop",
+            "merchant_id": "m_001_drmeera",
+            "identity": {"name": "RemindersOnly"},
+            "relationship": {"first_visit": "2025-11-04", "last_visit": "2026-05-12", "visits_total": 2},
+            "state": "active",
+            "preferences": {"reminder_opt_in": True},
+            "consent": {"opted_in_at": "2025-11-04", "scope": ["reminders"]},
+        }
+        engine.ingest("customer", "c_rem_loop", 1, cust_reminders)
+
+        # 2. Ingest customer with promotional marketing consent
+        cust_promo = {
+            "customer_id": "c_promo_loop",
+            "merchant_id": "m_001_drmeera",
+            "identity": {"name": "PromoAllowed"},
+            "relationship": {"first_visit": "2025-11-04", "last_visit": "2026-05-12", "visits_total": 2},
+            "state": "active",
+            "preferences": {"reminder_opt_in": True},
+            "consent": {"opted_in_at": "2025-11-04", "scope": ["promotional_offers"]},
+        }
+        engine.ingest("customer", "c_promo_loop", 1, cust_promo)
+
+        # 3. Create promotional trigger targeting reminders-only customer (MUST BE SUPPRESSED)
+        trg_unauthorized = {
+            "id": "trg_unauth_promo",
+            "scope": "customer",
+            "kind": "promotional_offer",
+            "source": "internal",
+            "merchant_id": "m_001_drmeera",
+            "customer_id": "c_rem_loop",
+            "payload": {"offer": "50% off teeth whitening"},
+            "urgency": 2,
+            "suppression_key": "promo:c_rem_loop",
+            "expires_at": "2026-12-31T00:00:00Z",
+        }
+        engine.ingest("trigger", "trg_unauth_promo", 1, trg_unauthorized)
+
+        # 4. Create service recall trigger targeting reminders customer (MUST BE DISPATCHED)
+        trg_authorized_recall = {
+            "id": "trg_auth_recall",
+            "scope": "customer",
+            "kind": "recall_due",
+            "source": "internal",
+            "merchant_id": "m_001_drmeera",
+            "customer_id": "c_rem_loop",
+            "payload": {"service_due": "cleaning"},
+            "urgency": 3,
+            "suppression_key": "recall:c_rem_loop",
+            "expires_at": "2026-12-31T00:00:00Z",
+        }
+        engine.ingest("trigger", "trg_auth_recall", 1, trg_authorized_recall)
+
+        # 5. Create promotional trigger targeting promo customer (MUST BE DISPATCHED)
+        trg_authorized_promo = {
+            "id": "trg_auth_promo",
+            "scope": "customer",
+            "kind": "promotional_offer",
+            "source": "internal",
+            "merchant_id": "m_001_drmeera",
+            "customer_id": "c_promo_loop",
+            "payload": {"offer": "Summer festive package"},
+            "urgency": 1,
+            "suppression_key": "promo:c_promo_loop",
+            "expires_at": "2026-12-31T00:00:00Z",
+        }
+        engine.ingest("trigger", "trg_auth_promo", 1, trg_authorized_promo)
+
+        # Call POST /v1/tick with all 3 triggers
+        resp = client.post(
+            "/v1/tick",
+            json={
+                "now": "2026-06-01T10:00:00Z",
+                "available_triggers": ["trg_unauth_promo", "trg_auth_recall", "trg_auth_promo"],
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        actions = resp.json().get("actions", [])
+        dispatched_trigger_ids = [a["trigger_id"] for a in actions]
+
+        # trg_unauth_promo MUST NOT be dispatched due to missing marketing consent
+        self.assertNotIn("trg_unauth_promo", dispatched_trigger_ids)
+
+        # trg_auth_recall should be dispatched as customer opted in to reminders
+        self.assertIn("trg_auth_recall", dispatched_trigger_ids)
+
 
 if __name__ == "__main__":
     unittest.main()

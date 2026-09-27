@@ -346,10 +346,21 @@ async def tick(req: TickRequest):
 
     for trg_id in sorted_triggers:
         trigger = engine.get_trigger(trg_id)
-        merchant_id = trigger.merchant_id if trigger else "unknown"
+        if not trigger:
+            continue
+        merchant_id = trigger.merchant_id or "unknown"
         if merchant_id != "unknown" and merchant_id in contacted_merchants:
             # Frequency capped for this tick
             continue
+
+        # REM-03: Pre-filter customer-scoped triggers that lack customer opt-in or scope
+        trg_scope = trigger.scope.value if hasattr(trigger.scope, "value") else str(trigger.scope)
+        if trg_scope == "customer" or trigger.customer_id:
+            if not trigger.customer_id:
+                continue
+            cust = engine.get_customer(trigger.customer_id)
+            if not cust or not vera.trigger_engine._check_customer_consent(trigger, cust):
+                continue
 
         conv_id = f"conv_{trg_id}"
         composed, decision, err = vera.handle_proactive_trigger(trg_id, conversation_id=conv_id)

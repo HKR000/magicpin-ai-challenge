@@ -368,6 +368,80 @@ class TestTriggerEngine(unittest.TestCase):
         self.assertEqual(decision.decision_type, "skip")
         self.assertEqual(decision.candidate_evaluations[0].rejection_reason, RejectionReason.CUSTOMER_CONSENT_MISSING)
 
+    def test_customer_promotional_trigger_rejected_if_only_reminders_consent(self):
+        # Create customer with only reminders consent (no promotional/marketing)
+        self.context_engine.ingest(
+            ContextScope.CUSTOMER,
+            "c_reminders_only",
+            1,
+            {
+                "customer_id": "c_reminders_only",
+                "merchant_id": "m_001_drmeera",
+                "identity": {"name": "RemindersOnly"},
+                "relationship": {"first_visit": "2025-11-04", "last_visit": "2026-05-12", "visits_total": 2},
+                "state": "active",
+                "preferences": {"reminder_opt_in": True},
+                "consent": {"opted_in_at": "2025-11-04", "scope": ["reminders"]},  # Only reminders
+            },
+        )
+        self.context_engine.ingest(
+            ContextScope.TRIGGER,
+            "trg_cx_promo",
+            1,
+            {
+                "id": "trg_cx_promo",
+                "scope": "customer",
+                "kind": "promotional_offer",
+                "source": "internal",
+                "merchant_id": "m_001_drmeera",
+                "customer_id": "c_reminders_only",
+                "payload": {"offer": "20% off whitening"},
+                "urgency": 2,
+                "suppression_key": "promo:c_reminders_only",
+                "expires_at": "2026-11-30T00:00:00Z",
+            },
+        )
+        decision = self.trigger_engine.evaluate_triggers(["trg_cx_promo"], now_iso="2026-04-26T10:00:00Z")
+        self.assertEqual(decision.decision_type, "skip")
+        self.assertEqual(decision.candidate_evaluations[0].rejection_reason, RejectionReason.CUSTOMER_CONSENT_MISSING)
+
+    def test_customer_reminder_rejected_if_reminder_opt_in_false(self):
+        # Create customer with recall_reminders scope but reminder_opt_in is False
+        self.context_engine.ingest(
+            ContextScope.CUSTOMER,
+            "c_opted_out_reminders",
+            1,
+            {
+                "customer_id": "c_opted_out_reminders",
+                "merchant_id": "m_001_drmeera",
+                "identity": {"name": "OptedOutReminders"},
+                "relationship": {"first_visit": "2025-11-04", "last_visit": "2026-05-12", "visits_total": 2},
+                "state": "active",
+                "preferences": {"reminder_opt_in": False},
+                "consent": {"opted_in_at": "2025-11-04", "scope": ["recall_reminders"]},
+            },
+        )
+        self.context_engine.ingest(
+            ContextScope.TRIGGER,
+            "trg_cx_recall_optout",
+            1,
+            {
+                "id": "trg_cx_recall_optout",
+                "scope": "customer",
+                "kind": "recall_due",
+                "source": "internal",
+                "merchant_id": "m_001_drmeera",
+                "customer_id": "c_opted_out_reminders",
+                "payload": {"service_due": "cleaning"},
+                "urgency": 3,
+                "suppression_key": "recall:c_opted_out_reminders",
+                "expires_at": "2026-11-30T00:00:00Z",
+            },
+        )
+        decision = self.trigger_engine.evaluate_triggers(["trg_cx_recall_optout"], now_iso="2026-04-26T10:00:00Z")
+        self.assertEqual(decision.decision_type, "skip")
+        self.assertEqual(decision.candidate_evaluations[0].rejection_reason, RejectionReason.CUSTOMER_CONSENT_MISSING)
+
 
 if __name__ == "__main__":
     unittest.main()

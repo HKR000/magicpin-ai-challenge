@@ -291,19 +291,88 @@ class TriggerIntelligenceEngine:
 
     def _check_customer_consent(self, trigger: TriggerContext, customer: CustomerContext) -> bool:
         """Verifies customer opt-in scope covers this outreach."""
+        # 1. Opt-in registration check
+        if not customer.consent.opted_in_at:
+            return False
+
         scope_list = [s.lower() for s in customer.consent.scope]
         if not scope_list:
             return False
 
-        kind = trigger.kind.lower()
-        if "recall" in kind:
-            return any(s in scope_list for s in ["recall_reminders", "appointment_reminders"])
-        if "bridal" in kind or "wedding" in kind:
-            return any(s in scope_list for s in ["bridal_package_followup", "appointment_reminders", "promotional_offers"])
-        if "festival" in kind or "promotional" in kind:
-            return any(s in scope_list for s in ["promotional_offers", "all"])
+        if "all" in scope_list:
+            return True
 
-        return True
+        kind = trigger.kind.lower()
+
+        # 2. Reminder / service triggers (recall, appointment, chronic refill)
+        is_reminder_type = any(k in kind for k in ["recall", "appointment", "refill", "reminder"])
+        if is_reminder_type:
+            # Respect explicit reminder opt-out
+            if customer.preferences.reminder_opt_in is False:
+                return False
+
+            allowed_scopes = {
+                "recall_reminders",
+                "appointment_reminders",
+                "reminders",
+                "recall_alerts",
+                "refill_reminders",
+                "delivery_notifications",
+                "treatment_followup",
+            }
+            return any(s in allowed_scopes for s in scope_list)
+
+        # 3. Promotional / Marketing / Winback / Lapsed triggers
+        is_marketing_type = any(
+            k in kind
+            for k in [
+                "promotional",
+                "festival",
+                "lapsed",
+                "winback",
+                "offer",
+                "discount",
+                "marketing",
+                "specials",
+            ]
+        )
+        if is_marketing_type:
+            allowed_scopes = {
+                "promotional_offers",
+                "whatsapp_marketing",
+                "marketing",
+                "winback_offers",
+                "renewal_reminders",
+                "lunch_thali_updates",
+                "match_night_specials",
+            }
+            return any(s in allowed_scopes for s in scope_list)
+
+        # 4. Program / Trial followups
+        if "trial" in kind or "program" in kind:
+            allowed_scopes = {
+                "kids_program_updates",
+                "program_updates",
+                "trial_followup",
+                "appointment_reminders",
+                "promotional_offers",
+                "whatsapp_marketing",
+            }
+            return any(s in allowed_scopes for s in scope_list)
+
+        # 5. Bridal / Event followups
+        if "bridal" in kind or "wedding" in kind:
+            allowed_scopes = {
+                "bridal_package_followup",
+                "appointment_reminders",
+                "promotional_offers",
+                "whatsapp_marketing",
+                "stylist_specific",
+            }
+            return any(s in allowed_scopes for s in scope_list)
+
+        # Default fallback: must have at least one general marketing or reminder scope
+        return any(s in scope_list for s in ["promotional_offers", "whatsapp_marketing", "reminders"])
 
     def _check_operational_relevance(
         self, trigger: TriggerContext, merchant: MerchantContext

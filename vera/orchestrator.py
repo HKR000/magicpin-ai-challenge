@@ -22,6 +22,7 @@ from vera.models.decision import (
 from vera.models.intent import DetectedIntent, IntentType
 from vera.models.message import ComposedMessage, CtaType, SendAsIdentity
 from vera.models.validation import OutputValidationReport
+from vera.trigger.engine import TriggerIntelligenceEngine
 from vera.validator.engine import OutputValidator
 
 
@@ -38,12 +39,14 @@ class Vera:
         decision_engine: Optional[DecisionEngine] = None,
         composer: Optional[MessageComposer] = None,
         validator: Optional[OutputValidator] = None,
+        trigger_engine: Optional[TriggerIntelligenceEngine] = None,
     ):
         self.context_engine = context_engine or ContextEngine()
         self.intent_classifier = intent_classifier or IntentClassifier()
         self.decision_engine = decision_engine or DecisionEngine()
         self.composer = composer or MessageComposer()
         self.validator = validator or OutputValidator()
+        self.trigger_engine = trigger_engine or TriggerIntelligenceEngine(self.context_engine)
 
     # =========================================================================
     # 1. CONTEXT INGESTION & UPDATES
@@ -92,6 +95,17 @@ class Vera:
         target_mid = merchant_id or trigger.merchant_id
         target_cid = customer_id or trigger.customer_id
         conv_id = conversation_id or f"conv_{target_mid}_{trigger_id}"
+
+        # REM-03: Validate customer consent if trigger is customer-scoped
+        trg_scope = trigger.scope.value if hasattr(trigger.scope, "value") else str(trigger.scope)
+        if trg_scope == "customer" or target_cid:
+            if not target_cid:
+                return None, None, f"Customer trigger '{trigger_id}' missing customer_id"
+            cust = self.context_engine.get_customer(target_cid)
+            if not cust:
+                return None, None, f"Customer '{target_cid}' does not exist in store"
+            if not self.trigger_engine._check_customer_consent(trigger, cust):
+                return None, None, f"Customer consent scope does not permit {trigger.kind} outreach"
 
         # Initialize or retrieve conversation
         conv = self.context_engine.create_or_get_conversation(
