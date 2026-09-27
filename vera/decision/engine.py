@@ -293,39 +293,39 @@ class DecisionEngine:
             }
 
         # ---------------------------------------------------------------------
-        # PROACTIVE TRIGGERS: Map Trigger Kind -> Strategic Objective & Action
+        # PROACTIVE TRIGGERS: Map Trigger Kind & Vertical -> Objective & Action
         # ---------------------------------------------------------------------
         trg_kind = trigger.kind.value if hasattr(trigger.kind, "value") else str(trigger.kind)
+        cat_slug = getattr(merchant, "category_slug", "")
 
-        if trg_kind == "research_digest":
+        if trg_kind in {"research_digest", "regulation_change", "cde_opportunity"}:
             return {
                 "objective": CommunicationObjective.PITCH_RESEARCH_CAMPAIGN,
                 "proposed_action": ProposedAction(
                     action_type=ProposedActionType.PITCH_OFFER,
                     target_id=top_item_id,
-                    payload={"digest_id": top_item_id, "service": "fluoride_recall"},
-                    cta_prompt="Pitch preventive dental campaign citing clinical study and high-risk patient volume",
+                    payload={"digest_id": top_item_id, "kind": trg_kind},
+                    cta_prompt="Pitch clinical practice update citing trial or regulatory guideline and action options",
                 ),
                 "response_required": True,
                 "stop_required": False,
-                "rationale": "Published clinical trial matches high-risk patient segment; pitch preventive campaign",
+                "rationale": f"Clinical practice event '{trg_kind}' detected; pitch verified practice recommendation",
             }
 
-        if trg_kind == "perf_dip":
+        if trg_kind in {"perf_dip", "seasonal_perf_dip", "perf_spike"}:
             return {
                 "objective": CommunicationObjective.RECOVER_PERFORMANCE_DIP,
                 "proposed_action": ProposedAction(
                     action_type=ProposedActionType.PITCH_OFFER,
-                    payload={"metric": metric, "delta_pct": delta_pct},
-                    cta_prompt="Highlight 7-day metric decline and pitch remedial featured listing promotion",
+                    payload={"metric": metric, "delta_pct": delta_pct, "kind": trg_kind},
+                    cta_prompt="Highlight 7-day metric shift and pitch remedial featured listing promotion",
                 ),
                 "response_required": True,
                 "stop_required": False,
-                "rationale": "7-day call volume dip detected; propose remedial featured promotion",
+                "rationale": f"Performance shift '{trg_kind}' detected; propose remedial featured promotion",
             }
 
-        if trg_kind == "recall_due":
-            # Preferred slots from customer preferences or trigger
+        if trg_kind in {"recall_due", "customer_lapsed_hard", "trial_followup"}:
             cust_slots = None
             if customer and customer.preferences and customer.preferences.preferred_slots:
                 cust_slots = customer.preferences.preferred_slots
@@ -333,12 +333,12 @@ class DecisionEngine:
                 "objective": CommunicationObjective.RE_ENGAGE_LAPSED_CUSTOMER,
                 "proposed_action": ProposedAction(
                     action_type=ProposedActionType.SUGGEST_TIME_SLOTS,
-                    payload={"slots": cust_slots or slots, "service_due": service_due},
-                    cta_prompt="Remind customer of overdue checkup and suggest convenient appointment slots",
+                    payload={"slots": cust_slots or slots, "service_due": service_due, "kind": trg_kind},
+                    cta_prompt="Remind customer of recall appointment and suggest convenient slots",
                 ),
                 "response_required": True,
                 "stop_required": False,
-                "rationale": "Customer overdue for periodic recall visit; propose specific appointment slots",
+                "rationale": f"Customer recall event '{trg_kind}'; propose specific appointment slots",
             }
 
         if trg_kind == "renewal_due":
@@ -355,7 +355,7 @@ class DecisionEngine:
                 "rationale": "Subscription nearing expiration; trigger proactive renewal alert",
             }
 
-        if trg_kind == "unverified_gbp":
+        if trg_kind in {"unverified_gbp", "gbp_unverified"}:
             return {
                 "objective": CommunicationObjective.VERIFY_GOOGLE_BUSINESS_PROFILE,
                 "proposed_action": ProposedAction(
@@ -367,21 +367,74 @@ class DecisionEngine:
                 "rationale": "Unverified GBP harms organic reach; urge profile claim & verification",
             }
 
-        if trg_kind in {"festival_upcoming", "seasonal_beat"}:
+        if trg_kind == "competitor_opened":
             return {
-                "objective": CommunicationObjective.PROMOTE_SEASONAL_OFFER,
+                "objective": CommunicationObjective.DEFEND_LOCAL_COMPETITION,
                 "proposed_action": ProposedAction(
                     action_type=ProposedActionType.PITCH_OFFER,
-                    cta_prompt="Propose holiday festive bundle package for upcoming peak season",
+                    payload=payload,
+                    cta_prompt="Alert clinic to new competitor in locality and launch patient loyalty campaign",
                 ),
                 "response_required": True,
                 "stop_required": False,
-                "rationale": "Upcoming festive season presents elevated demand; pitch promotional bundle",
+                "rationale": "Competitor clinic opened within locality; launch defensive loyalty offer",
+            }
+
+        if cat_slug == "salons" or trg_kind in {"festival_upcoming", "wedding_package_followup", "curious_ask_due", "winback_eligible", "dormant_with_vera"}:
+            return {
+                "objective": CommunicationObjective.PROMOTE_FESTIVE_PACKAGE,
+                "proposed_action": ProposedAction(
+                    action_type=ProposedActionType.PITCH_OFFER,
+                    payload=payload,
+                    cta_prompt="Propose seasonal beauty styling package for upcoming peak appointments",
+                ),
+                "response_required": True,
+                "stop_required": False,
+                "rationale": f"Salon opportunity '{trg_kind}'; propose beauty and styling package",
+            }
+
+        if cat_slug == "restaurants" or trg_kind in {"ipl_match_today", "review_theme_emerged", "milestone_reached"}:
+            return {
+                "objective": CommunicationObjective.OPTIMIZE_RESTAURANT_SURGE,
+                "proposed_action": ProposedAction(
+                    action_type=ProposedActionType.PITCH_OFFER,
+                    payload=payload,
+                    cta_prompt="Propose delivery menu promotion for upcoming match or dining surge",
+                ),
+                "response_required": True,
+                "stop_required": False,
+                "rationale": f"Restaurant event '{trg_kind}'; optimize order velocity and delivery rush",
+            }
+
+        if cat_slug == "gyms" or trg_kind in {"kids_yoga_program_drafting"}:
+            return {
+                "objective": CommunicationObjective.DRIVE_FITNESS_MEMBERSHIP,
+                "proposed_action": ProposedAction(
+                    action_type=ProposedActionType.PITCH_OFFER,
+                    payload=payload,
+                    cta_prompt="Propose workout fitness challenge to drive member training attendance",
+                ),
+                "response_required": True,
+                "stop_required": False,
+                "rationale": f"Gym event '{trg_kind}'; launch member workout challenge",
+            }
+
+        if cat_slug == "pharmacies" or trg_kind in {"supply_alert", "chronic_refill_due", "category_seasonal"}:
+            return {
+                "objective": CommunicationObjective.AUDIT_PHARMACY_COMPLIANCE,
+                "proposed_action": ProposedAction(
+                    action_type=ProposedActionType.PITCH_OFFER,
+                    payload=payload,
+                    cta_prompt="Alert pharmacy to stock compliance, batch alert, or chronic refill schedule",
+                ),
+                "response_required": True,
+                "stop_required": False,
+                "rationale": f"Pharmacy event '{trg_kind}'; review compliance register and refills",
             }
 
         # Fallback proactive initiation
         return {
-            "objective": CommunicationObjective.PITCH_RESEARCH_CAMPAIGN,
+            "objective": CommunicationObjective.PROMOTE_SEASONAL_OFFER,
             "proposed_action": ProposedAction(action_type=ProposedActionType.PITCH_OFFER),
             "response_required": True,
             "stop_required": False,

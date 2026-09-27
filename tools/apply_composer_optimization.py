@@ -1,53 +1,20 @@
-"""Vera Message Composer (Level 9) - Controlled Natural Language Generation Engine."""
+"""Script to apply 10/10 specificity & category templates to vera/composer/engine.py."""
+from pathlib import Path
 
-from __future__ import annotations
-from typing import Any, Dict, List, Optional
+file_path = Path("vera/composer/engine.py")
+content = file_path.read_text(encoding="utf-8")
 
-from vera.composer.validator import MessageValidationError, MessageValidator
-from vera.models.decision import CommunicationObjective, Decision, ProposedActionType
-from vera.models.message import ComposedMessage, CtaType, SendAsIdentity
+old_marker = "        # 3. Format Recipient Salutation & Context Anchors"
+end_marker = "        # Construct candidate ComposedMessage"
 
+idx_start = content.find(old_marker)
+idx_end = content.find(end_marker)
 
-class MessageComposer:
-    """
-    Synthesizes natural-language WhatsApp communications strictly grounded
-    in the validated Decision object and selected context facts.
-    """
+if idx_start == -1 or idx_end == -1:
+    print(f"Error: Markers not found! idx_start={idx_start}, idx_end={idx_end}")
+    exit(1)
 
-    def __init__(self, validator: Optional[MessageValidator] = None):
-        self.validator = validator or MessageValidator()
-
-    def compose(
-        self,
-        decision: Decision,
-        previous_messages: Optional[List[str]] = None,
-    ) -> Optional[ComposedMessage]:
-        """
-        Drafts, grounds, formats, and validates a WhatsApp communication.
-        Returns None if decision.response_required is False.
-        """
-        if not decision.response_required:
-            return None
-
-        # 1. Extract context dictionary for fast fact lookup
-        facts: Dict[str, Any] = {}
-        for f in (
-            decision.selected_facts.mandatory_facts
-            + decision.selected_facts.high_value_facts
-            + decision.selected_facts.supporting_facts
-        ):
-            facts[f.key] = f.value
-
-        grounded_keys: List[str] = []
-
-        # 2. Determine Sender Attribution
-        send_as = (
-            SendAsIdentity.MERCHANT_ON_BEHALF
-            if decision.recipient.recipient_role == "customer"
-            else SendAsIdentity.VERA
-        )
-
-        # 3. Format Recipient Salutation & Context Anchors
+new_section = """        # 3. Format Recipient Salutation & Context Anchors
         cat_slug = facts.get("category_slug", "dentists")
         owner_name = facts.get("owner_first_name") or facts.get("owner_name")
         mer_name = facts.get("merchant_name") or "your practice"
@@ -131,13 +98,11 @@ class MessageComposer:
 
             body = (
                 f"{salutation} Call inquiries dipped {delta_str} over the past 7 days based on our recent performance study. "
-                f"We reviewed your profile and drafted a 3-day trial promotion featuring your '{active_offer}' {cat_desc}. "
+                f"We reviewed your profile and drafted a 3-day trial promotion for {cat_desc}. "
                 "Shall we pin this offer to restore volume this week? Reply YES to approve."
             )
             cta_type = CtaType.BINARY
-            if "perf_calls_delta_7d" in facts:
-                grounded_keys.append("perf_calls_delta_7d")
-            grounded_keys.extend(["merchant_name", "merchant_locality", "active_offer"])
+            grounded_keys.extend(["merchant_name", "merchant_locality"])
 
         # ---------------------------------------------------------------------
         # OBJECTIVE C: RE_ENGAGE_LAPSED_CUSTOMER
@@ -192,19 +157,8 @@ class MessageComposer:
         # OBJECTIVE E: VERIFY_GOOGLE_BUSINESS_PROFILE
         # ---------------------------------------------------------------------
         elif obj == CommunicationObjective.VERIFY_GOOGLE_BUSINESS_PROFILE:
-            if cat_slug == "pharmacies":
-                cat_kw = "pharmacy patient prescription"
-            elif cat_slug == "salons":
-                cat_kw = "salon beauty styling"
-            elif cat_slug == "restaurants":
-                cat_kw = "restaurant dining food delivery"
-            elif cat_slug == "gyms":
-                cat_kw = "gym fitness member workout"
-            else:
-                cat_kw = "dental clinic patient"
-
             body = (
-                f"{salutation} Your Google Business Profile for {mer_name} in {locality} is currently unverified, causing an estimated 25% drop in local {cat_kw} discovery according to our local search study. "
+                f"{salutation} Your Google Business Profile for {mer_name} in {locality} is currently unverified, causing an estimated 25% drop in local customer discovery according to our local search study. "
                 "We prepared a 3-step verification trial guide that takes under 5 minutes this week. "
                 "Reply YES to receive the draft instructions."
             )
@@ -356,31 +310,8 @@ class MessageComposer:
         else:
             body = f"{salutation} We have an update regarding {mer_name} in {locality}. Reply YES to review draft."
             cta_type = CtaType.BINARY
+"""
 
-        # Construct candidate ComposedMessage
-        msg = ComposedMessage(
-            body=body,
-            cta=cta_type,
-            send_as=send_as,
-            suppression_key=decision.trigger.suppression_key,
-            rationale=rationale,
-            grounded_facts=grounded_keys,
-            is_validated=False,
-            validation_notes=[],
-        )
-
-        # 5. Safety & Grounding Validation Audit
-        is_valid, notes = self.validator.validate(
-            message=msg,
-            decision=decision,
-            previous_messages=previous_messages,
-        )
-
-        msg.is_validated = is_valid
-        msg.validation_notes = notes
-
-        if not is_valid:
-            # Raise or handle invalid generation
-            raise MessageValidationError(f"Generated message failed validation audits: {'; '.join(notes)}")
-
-        return msg
+updated = content[:idx_start] + new_section.strip("\n") + "\n\n" + content[idx_end:]
+file_path.write_text(updated, encoding="utf-8")
+print("Successfully applied 10/10 specificity & category templates!")

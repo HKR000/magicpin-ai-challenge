@@ -186,6 +186,25 @@ class ContextSelector:
                     )
                 )
 
+            if merchant.category_slug:
+                mandatory.append(
+                    SelectedFact(
+                        key="category_slug",
+                        value=merchant.category_slug,
+                        tier=FactTier.MANDATORY,
+                        provenance=FactProvenance(
+                            entity_id=merchant.merchant_id,
+                            scope="merchant",
+                            field_path="category_slug",
+                            value=merchant.category_slug,
+                            context_version=mer_ver,
+                        ),
+                        priority_score=0.98,
+                        relevance_reason="Vertical business category alignment",
+                    )
+                )
+                total_considered += 1
+
             if merchant.identity.owner_first_name:
                 mandatory.append(
                     SelectedFact(
